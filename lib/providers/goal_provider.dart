@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/models/goal.dart';
-import 'dart:convert';
 
 /// 로컬 저장소 시뮬레이션 (실제로는 Hive 또는 SharedPreferences 사용)
 class LocalStorage {
@@ -99,13 +98,21 @@ class GoalNotifier extends StateNotifier<AsyncValue<List<Goal>>> {
 /// 특정 Goal 상세 정보 제공자
 final goalDetailProvider =
     FutureProvider.family<Goal?, String>((ref, goalId) async {
-  final goals = await ref.watch(goalsProvider.future);
-  return goals.firstWhere((g) => g.id == goalId, orElse: () => Goal(
-    id: goalId,
-    title: 'Not Found',
-    unit: '',
-    totalAmount: 0,
-  ));
+  final goalsAsync = ref.watch(goalsProvider);
+  final goals = goalsAsync.maybeWhen(
+    data: (data) => data,
+    orElse: () => <Goal>[],
+  );
+  try {
+    return goals.firstWhere((g) => g.id == goalId);
+  } catch (e) {
+    return Goal(
+      id: goalId,
+      title: 'Not Found',
+      unit: '',
+      totalAmount: 0,
+    );
+  }
 });
 
 /// 특정 Goal의 로그 목록 제공자

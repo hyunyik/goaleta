@@ -1,4 +1,66 @@
 import 'package:uuid/uuid.dart';
+import 'package:flutter/material.dart';
+
+enum GoalCategory {
+  reading,
+  study,
+  fitness,
+  writing,
+  practice,
+  custom;
+
+  String get displayName {
+    switch (this) {
+      case GoalCategory.reading:
+        return '읽기';
+      case GoalCategory.study:
+        return '공부';
+      case GoalCategory.fitness:
+        return '운동';
+      case GoalCategory.writing:
+        return '쓰기';
+      case GoalCategory.practice:
+        return '연습';
+      case GoalCategory.custom:
+        return '기타';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case GoalCategory.reading:
+        return Icons.menu_book;
+      case GoalCategory.study:
+        return Icons.school;
+      case GoalCategory.fitness:
+        return Icons.fitness_center;
+      case GoalCategory.writing:
+        return Icons.edit_note;
+      case GoalCategory.practice:
+        return Icons.piano;
+      case GoalCategory.custom:
+        return Icons.more_horiz;
+    }
+  }
+
+  Color getColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    switch (this) {
+      case GoalCategory.reading:
+        return Colors.blue;
+      case GoalCategory.study:
+        return Colors.purple;
+      case GoalCategory.fitness:
+        return Colors.orange;
+      case GoalCategory.writing:
+        return Colors.green;
+      case GoalCategory.practice:
+        return Colors.pink;
+      case GoalCategory.custom:
+        return colorScheme.primary;
+    }
+  }
+}
 
 class Goal {
   final String id;
@@ -10,6 +72,7 @@ class Goal {
   final DateTime createdAt;
   final bool isCompleted;
   final DateTime? completedAt;
+  final GoalCategory category;
 
   Goal({
     String? id,
@@ -21,6 +84,7 @@ class Goal {
     DateTime? createdAt,
     this.isCompleted = false,
     this.completedAt,
+    this.category = GoalCategory.custom,
   })  : id = id ?? const Uuid().v4(),
         startDate = startDate ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
@@ -45,6 +109,7 @@ class Goal {
     DateTime? createdAt,
     bool? isCompleted,
     DateTime? completedAt,
+    GoalCategory? category,
   }) {
     return Goal(
       id: id ?? this.id,
@@ -56,6 +121,7 @@ class Goal {
       createdAt: createdAt ?? this.createdAt,
       isCompleted: isCompleted ?? this.isCompleted,
       completedAt: completedAt ?? this.completedAt,
+      category: category ?? this.category,
     );
   }
 
@@ -71,6 +137,7 @@ class Goal {
       'createdAt': createdAt.toIso8601String(),
       'isCompleted': isCompleted,
       'completedAt': completedAt?.toIso8601String(),
+      'category': category.name,
     };
   }
 
@@ -87,6 +154,10 @@ class Goal {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'])
           : null,
+      category: GoalCategory.values.firstWhere(
+        (e) => e.name == json['category'],
+        orElse: () => GoalCategory.custom,
+      ),
     );
   }
 }

@@ -40,7 +40,7 @@ class GoalCard extends ConsumerWidget {
           data: (completedAmount) {
             final logs = logsAsyncValue.maybeWhen(
               data: (l) => l,
-              orElse: () => [],
+              orElse: () => <LogEntry>[],
             );
             return _buildCardContent(
               context,
@@ -96,10 +96,24 @@ class GoalCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 제목 + 메뉴 버튼
+              // 제목 + 카테고리 아이콘 + 메뉴 버튼
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // 카테고리 아이콘
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: goal.category.getColor(context).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      goal.category.icon,
+                      size: 20,
+                      color: goal.category.getColor(context),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       goal.title,
@@ -131,7 +145,7 @@ class GoalCard extends ConsumerWidget {
                 child: LinearProgressIndicator(
                   value: percentage / 100,
                   minHeight: 8,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation(
                     Theme.of(context).colorScheme.primary,
                   ),

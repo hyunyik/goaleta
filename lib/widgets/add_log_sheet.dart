@@ -62,8 +62,8 @@ class _AddLogBottomSheetState extends State<AddLogBottomSheet> {
       note: noteController.text.isEmpty ? null : noteController.text,
     );
 
+    Navigator.of(context).pop();
     widget.onSave(log);
-    if (mounted) Navigator.pop(context);
   }
 
   void _showErrorSnackBar(String message) {
@@ -84,7 +84,7 @@ class _AddLogBottomSheetState extends State<AddLogBottomSheet> {
       lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(useMaterial3: true),
+          data: Theme.of(context).copyWith(),
           child: child!,
         );
       },

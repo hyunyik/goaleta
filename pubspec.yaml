@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   
   # Material 3
   google_fonts: ^6.0.0
@@ -23,7 +25,7 @@ dependencies:
   hive_flutter: ^1.1.0
   
   # Date/Time
-  intl: ^0.19.0
+  intl: ^0.20.2
   
   # UUID
   uuid: ^4.0.0

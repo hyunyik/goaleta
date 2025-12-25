@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/screens/home_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -63,7 +64,7 @@ class GoaletaApp extends StatelessWidget {
           ).surface,
         ),
         // Card 스타일 (shape.medium = 12dp)
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -124,7 +125,7 @@ class GoaletaApp extends StatelessWidget {
           ).surface,
         ),
         // Dark Card 스타일
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -132,7 +133,11 @@ class GoaletaApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      localizationsDelegates: const [],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: const [Locale('ko', 'KR')],
       home: const HomeScreen(),
     );

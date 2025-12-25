@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/screens/goal_detail_screen.dart';
 import 'package:goaleta/widgets/goal_card.dart';
@@ -128,18 +127,15 @@ class HomeScreen extends ConsumerWidget {
       builder: (context) => AddEditGoalBottomSheet(
         onSave: (goal) {
           ref.read(goalsProvider.notifier).addGoal(goal);
-          if (context.mounted) {
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('새로운 목표가 추가되었습니다'),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('새로운 목표가 추가되었습니다'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-            );
-          }
+            ),
+          );
         },
       ),
     );

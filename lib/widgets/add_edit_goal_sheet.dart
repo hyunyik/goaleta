@@ -22,6 +22,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   late TextEditingController totalAmountController;
   late DateTime selectedDate;
   late bool excludeWeekends;
+  late GoalCategory selectedCategory;
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     );
     selectedDate = widget.existingGoal?.startDate ?? DateTime.now();
     excludeWeekends = widget.existingGoal?.excludeWeekends ?? false;
+    selectedCategory = widget.existingGoal?.category ?? GoalCategory.custom;
   }
 
   @override
@@ -67,10 +69,11 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       totalAmount: totalAmount,
       startDate: selectedDate,
       excludeWeekends: excludeWeekends,
+      category: selectedCategory,
     );
 
+    Navigator.of(context).pop();
     widget.onSave(goal);
-    if (mounted) Navigator.pop(context);
   }
 
   void _showErrorSnackBar(String message) {
@@ -91,7 +94,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(useMaterial3: true),
+          data: Theme.of(context).copyWith(),
           child: child!,
         );
       },
@@ -149,6 +152,49 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             ),
             const SizedBox(height: 16),
 
+            // 카테고리 선택
+            Text(
+              '카테고리',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: GoalCategory.values.map((category) {
+                final isSelected = selectedCategory == category;
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        category.icon,
+                        size: 16,
+                        color: isSelected
+                            ? category.getColor(context)
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(category.displayName),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      selectedCategory = category;
+                    });
+                  },
+                  selectedColor: category.getColor(context).withOpacity(0.2),
+                  side: BorderSide(
+                    color: isSelected
+                        ? category.getColor(context)
+                        : Theme.of(context).colorScheme.outline,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
             // 단위와 총량을 같은 줄에 배치
             Row(
               children: [
@@ -175,7 +221,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
                     decoration: InputDecoration(
                       labelText: '총량',
                       hintText: '예: 500',
-                      prefixIcon: const Icon(Icons.target),
+                      prefixIcon: const Icon(Icons.track_changes),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

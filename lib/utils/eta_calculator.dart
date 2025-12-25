@@ -20,17 +20,44 @@ class ETACalculator {
       return {
         'remainingDays': 0,
         'estimatedDate': DateTime.now(),
+        'dailyAverage': 0.0,
       };
     }
 
     final remaining = totalAmount - completedAmount;
 
-    // 경과한 날수 계산 (주말 제외 옵션)
-    int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
-    if (elapsedDays == 0) elapsedDays = 1; // 최소 1일
-
-    // 일일 평균 계산
-    double dailyAverage = completedAmount / elapsedDays;
+    double dailyAverage;
+    
+    // 기록이 있으면 최근 14일 평균 사용, 없으면 전체 평균
+    if (logs.isNotEmpty) {
+      final now = DateTime.now();
+      final cutoffDate = DateTime(now.year, now.month, now.day - 14);
+      
+      // 최근 14일 기록 필터링
+      final recentLogs = logs.where((log) => 
+        log.logDate.isAfter(cutoffDate) || 
+        log.logDate.isAtSameMomentAs(cutoffDate)
+      ).toList();
+      
+      if (recentLogs.isNotEmpty) {
+        // 최근 14일 동안 기록이 있는 날짜들의 일평균
+        final groupedByDate = groupLogsByDate(recentLogs);
+        final totalRecent = groupedByDate.values.fold<double>(0, (sum, val) => sum + val);
+        final daysWithRecords = groupedByDate.length;
+        dailyAverage = totalRecent / daysWithRecords;
+      } else {
+        // 최근 14일 기록이 없으면 전체 평균
+        int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
+        if (elapsedDays == 0) elapsedDays = 1;
+        dailyAverage = completedAmount / elapsedDays;
+      }
+    } else {
+      // 기록이 없으면 경과일 기준 평균
+      int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
+      if (elapsedDays == 0) elapsedDays = 1;
+      dailyAverage = completedAmount / elapsedDays;
+    }
+    
     if (dailyAverage <= 0) dailyAverage = 0.1; // 최소 0.1
 
     // 남은 기간 계산
