@@ -60,7 +60,6 @@ class GoalCard extends ConsumerWidget {
     required List<LogEntry> logs,
     required bool isLoading,
   }) {
-    final remaining = goal.getRemainingAmount(completedAmount);
     final percentage = goal.getProgressPercentage(completedAmount);
     
     final etaData = ETACalculator.calculateSimpleAverageETA(
@@ -72,135 +71,152 @@ class GoalCard extends ConsumerWidget {
     );
 
     final estimatedDate = etaData['estimatedDate'] as DateTime;
-    final remainingDays = etaData['remainingDays'] as int;
-
     final dateFormatter = DateFormat('yyyy.MM.dd');
-    final etaText = remainingDays == 0
-        ? '완료됨'
-        : remainingDays == 1
-            ? '내일'
-            : '$remainingDays일 남음';
+
+    // Background image path based on category
+    final backgroundImage = _getBackgroundImage();
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
+      elevation: 4,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          height: 200,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              // 제목 + 카테고리 아이콘 + 메뉴 버튼
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // 카테고리 아이콘
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: goal.category.getColor(context).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      goal.category.icon,
-                      size: 20,
-                      color: goal.category.getColor(context),
-                    ),
+              // Top 2/3: Background image with title
+              Expanded(
+                flex: 2,
+                child: Container(
+                  decoration: BoxDecoration(
+                    image: backgroundImage != null
+                        ? DecorationImage(
+                            image: AssetImage(backgroundImage),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withOpacity(0.3),
+                              BlendMode.darken,
+                            ),
+                          )
+                        : null,
+                    gradient: backgroundImage == null
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              goal.category.getColor(context).withOpacity(0.7),
+                              goal.category.getColor(context),
+                            ],
+                          )
+                        : null,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      goal.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            goal.title,
+                            style: const TextStyle(
+                              fontSize: 44,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 2),
+                                  blurRadius: 8,
+                                  color: Colors.black54,
+                                ),
+                              ],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Three dots menu
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 24, color: Colors.white),
+                          onSelected: (value) {
+                            if (value == 'delete') {
+                              _showDeleteConfirm(context);
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => [
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('삭제'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'delete') {
-                        _showDeleteConfirm(context);
-                      }
-                    },
-                    itemBuilder: (BuildContext context) => [
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('삭제'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // 진행률 바
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: percentage / 100,
-                  minHeight: 8,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation(
-                    Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-
-              // 진행률(%) · 남은 양
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${percentage.toStringAsFixed(1)}%',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  Text(
-                    '남음: ${remaining.toStringAsFixed(1)} ${goal.unit}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // 예상 완료일(ETA) 또는 n일 남음
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'ETA: ${dateFormatter.format(estimatedDate)}',
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      etaText,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
+              
+              // Bottom 1/3: White background with Percent and ETA
+              Expanded(
+                flex: 1,
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Progress %
+                      Text(
+                        '${percentage.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: goal.category.getColor(context),
+                        ),
                       ),
-                    ),
+                      
+                      // ETA
+                      Text(
+                        'ETA ${dateFormatter.format(estimatedDate)}',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String? _getBackgroundImage() {
+    // Map category to background image
+    // You can add your PNG files to assets/images/ folder
+    // and update these paths accordingly
+    switch (goal.category) {
+      case GoalCategory.reading:
+        return 'assets/images/reading.png';
+      case GoalCategory.study:
+        return 'assets/images/study.png';
+      case GoalCategory.fitness:
+        return 'assets/images/fitness.png';
+      case GoalCategory.writing:
+        return 'assets/images/writing.png';
+      case GoalCategory.practice:
+        return 'assets/images/practice.png';
+      case GoalCategory.custom:
+        return 'assets/images/custom.png'; // Use gradient for custom category
+    }
   }
 
   void _showDeleteConfirm(BuildContext context) {
