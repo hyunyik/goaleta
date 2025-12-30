@@ -12,6 +12,24 @@ class GoalDetailScreen extends ConsumerWidget {
 
   const GoalDetailScreen({required this.goal, Key? key}) : super(key: key);
 
+  String? _getBackgroundImage() {
+    // Map category to background image - same as GoalCard
+    switch (goal.category) {
+      case GoalCategory.reading:
+        return 'assets/images/reading.png';
+      case GoalCategory.study:
+        return 'assets/images/study.png';
+      case GoalCategory.fitness:
+        return 'assets/images/fitness.png';
+      case GoalCategory.writing:
+        return 'assets/images/writing.png';
+      case GoalCategory.practice:
+        return 'assets/images/practice.png';
+      case GoalCategory.custom:
+        return 'assets/images/custom.png';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final completedAsyncValue = ref.watch(completedAmountProvider(goal.id));
@@ -49,6 +67,7 @@ class GoalDetailScreen extends ConsumerWidget {
           final dailyAverage = etaData['dailyAverage'] as double;
 
           final dateFormatter = DateFormat('yyyy.MM.dd');
+          final backgroundImage = _getBackgroundImage();
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -59,18 +78,30 @@ class GoalDetailScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                // 상단: 남은 양 및 ETA
+                // 상단: 남은 양 및 ETA with background image
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        goal.category.getColor(context).withOpacity(0.2),
-                        goal.category.getColor(context).withOpacity(0.05),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    image: backgroundImage != null
+                        ? DecorationImage(
+                            image: AssetImage(backgroundImage),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withOpacity(0.4),
+                              BlendMode.darken,
+                            ),
+                          )
+                        : null,
+                    gradient: backgroundImage == null
+                        ? LinearGradient(
+                            colors: [
+                              goal.category.getColor(context).withOpacity(0.7),
+                              goal.category.getColor(context),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(24),
                       bottomRight: Radius.circular(24),
@@ -84,14 +115,28 @@ class GoalDetailScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontSize: 56,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              offset: Offset(0, 2),
+                              blurRadius: 8,
+                              color: Colors.black54,
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${goal.unit} 남음',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.black.withOpacity(0.7),
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              offset: Offset(0, 1),
+                              blurRadius: 4,
+                              color: Colors.black54,
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -100,11 +145,18 @@ class GoalDetailScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: _getETAStatusColor(context, remainingDays, dailyAverage, remaining).withOpacity(0.1),
+                          color: Colors.white.withOpacity(0.95),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _getETAStatusColor(context, remainingDays, dailyAverage, remaining).withOpacity(0.3),
+                            color: Colors.white.withOpacity(0.5),
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

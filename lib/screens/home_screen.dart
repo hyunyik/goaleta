@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/providers/goal_provider.dart';
-import 'package:goaleta/screens/goal_detail_screen.dart';
 import 'package:goaleta/widgets/goal_card.dart';
 import 'package:goaleta/widgets/add_edit_goal_sheet.dart';
 import 'package:goaleta/models/goal.dart';
@@ -142,14 +141,6 @@ class HomeScreen extends ConsumerWidget {
                     return GoalCard(
                       key: ValueKey(goal.id),
                       goal: goal,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GoalDetailScreen(goal: goal),
-                          ),
-                        );
-                      },
                       onDelete: () {
                         ref.read(goalsProvider.notifier).deleteGoal(goal.id);
                         if (context.mounted) {
@@ -176,7 +167,7 @@ class HomeScreen extends ConsumerWidget {
         onPressed: () {
           _showAddGoalSheet(context, ref);
         },
-        backgroundColor: Colors.blueGrey,
+        backgroundColor: Colors.purpleAccent,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
