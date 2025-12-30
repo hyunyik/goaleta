@@ -36,11 +36,17 @@ class GoalDetailScreen extends ConsumerWidget {
     final logsAsyncValue = ref.watch(logsProvider(goal.id));
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(goal.title),
+        title: const SizedBox.shrink(), // Empty title, we'll put it on the background
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.light, // Light status bar icons
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: completedAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -78,9 +84,14 @@ class GoalDetailScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                // 상단: 남은 양 및 ETA with background image
+                // 상단: Background image header with title and bar chart
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    MediaQuery.of(context).padding.top + 56, // Status bar + AppBar height
+                    24,
+                    32,
+                  ),
                   decoration: BoxDecoration(
                     image: backgroundImage != null
                         ? DecorationImage(
@@ -102,21 +113,18 @@ class GoalDetailScreen extends ConsumerWidget {
                             end: Alignment.bottomRight,
                           )
                         : null,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 남은 양 - 큰 숫자
+                      // Title (2 lines max)
                       Text(
-                        remaining.toStringAsFixed(0),
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontSize: 56,
+                        goal.title,
+                        style: const TextStyle(
+                          fontSize: 44,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          shadows: const [
+                          shadows: [
                             Shadow(
                               offset: Offset(0, 2),
                               blurRadius: 8,
@@ -124,213 +132,148 @@ class GoalDetailScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${goal.unit} 남음',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(
-                              offset: Offset(0, 1),
-                              blurRadius: 4,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ETA 정보 with color-coded status
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildETAItem(
-                              context,
-                              '예상 완료일',
-                              dateFormatter.format(estimatedDate),
-                              _getETAStatusColor(context, remainingDays, dailyAverage, remaining),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 30,
-                              color: Colors.black.withOpacity(0.1),
-                            ),
-                            _buildETAItem(
-                              context,
-                              '남은 일수',
-                              remainingDays == 0 ? '완료' : '$remainingDays일',
-                              _getETAStatusColor(context, remainingDays, dailyAverage, remaining),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const SizedBox(height: 32),
+                      
+                      // Recent 14 days bar chart (transparent style)
+                      _buildTransparentBarChart(context, logs.cast<LogEntry>()),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
-                // Summary statistics card
+                // ETA text with colored background
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     decoration: BoxDecoration(
-                      color: goal.category.getColor(context).withOpacity(0.08),
+                      color: goal.category.getColor(context).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: goal.category.getColor(context).withOpacity(0.2),
-                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatItem(
-                          context,
-                          Icons.event_note,
-                          '총 기록',
-                          '${logs.length}일',
-                        ),
-                        Container(
-                          width: 1,
-                          height: 30,
-                          color: Colors.black.withOpacity(0.1),
-                        ),
-                        _buildStatItem(
-                          context,
-                          Icons.star,
-                          '최고 기록',
-                          logs.isEmpty ? '0' : logs.map((l) => l.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(0),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 30,
-                          color: Colors.black.withOpacity(0.1),
-                        ),
-                        _buildStatItem(
-                          context,
-                          Icons.timeline,
-                          '활동 일수',
-                          '${_getUniqueDaysCount(logs.cast<LogEntry>())}일',
-                        ),
-                      ],
+                    child: Text(
+                      'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // 진행 상황
+                // Three rounded cards in single row
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.trending_up,
-                            size: 20,
-                            color: Colors.black.withOpacity(0.7),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '진행 상황',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: percentage / 100,
-                          minHeight: 12,
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          valueColor: AlwaysStoppedAnimation(
-                            goal.category.getColor(context),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${percentage.toStringAsFixed(0)}%',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.black,
-                            ),
-                          ),
-                          Text(
-                            '${completedAmount.toStringAsFixed(0)} / ${goal.totalAmount.toStringAsFixed(0)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: goal.category.getColor(context).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '일평균: ${dailyAverage.toStringAsFixed(2)} ${goal.unit}/일',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
+                      // Progress card
+                      Expanded(
+                        child: _buildInfoCard(
+                          context,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                '진행률',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '${percentage.toStringAsFixed(0)}%',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${completedAmount.toStringAsFixed(0)}/${goal.totalAmount.toStringAsFixed(0)}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 최근 14일 기록 차트 (리스트 형태)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.bar_chart,
-                            size: 20,
-                            color: Colors.black.withOpacity(0.7),
+                      const SizedBox(width: 8),
+                      
+                      // Average record card
+                      Expanded(
+                        child: _buildInfoCard(
+                          context,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                '일평균',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                dailyAverage.toStringAsFixed(1),
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                goal.unit,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '최근 14일 기록',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildRecentDaysChart(context, logs.cast<LogEntry>()),
+                      const SizedBox(width: 8),
+                      
+                      // Best record card
+                      Expanded(
+                        child: _buildInfoCard(
+                          context,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                '최고 기록',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                logs.isEmpty 
+                                  ? '0'
+                                  : logs.map((l) => l.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(0),
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                goal.unit,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -368,7 +311,6 @@ class GoalDetailScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
                       if (logs.isEmpty)
                         Center(
                           child: Padding(
@@ -402,6 +344,7 @@ class GoalDetailScreen extends ConsumerWidget {
                         ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
                           itemCount: logs.length,
                           itemBuilder: (context, index) {
                             final log = logs[index];
@@ -418,12 +361,6 @@ class GoalDetailScreen extends ConsumerWidget {
           ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddLogSheet(context, ref);
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -458,6 +395,106 @@ class GoalDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(BuildContext context, {required Widget child}) {
+    return Container(
+      height: 120,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildTransparentBarChart(BuildContext context, List<LogEntry> logs) {
+    final data = ETACalculator.getRecentDaysData(logs: logs, days: 14);
+    final maxValue = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
+    final maxHeight = maxValue > 0 ? maxValue : 1.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '최근 14일 기록',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                offset: Offset(0, 1),
+                blurRadius: 4,
+                color: Colors.black54,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 120,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(
+              data.length,
+              (index) {
+                final value = data[index];
+                final height = (value / maxHeight * 100).clamp(8.0, 100.0);
+
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Count above bar
+                        Text(
+                          value > 0 ? value.toStringAsFixed(0) : '',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 1),
+                                blurRadius: 2,
+                                color: Colors.black54,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Transparent bar
+                        Container(
+                          height: height,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(value > 0 ? 0.7 : 0.2),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(4),
+                              topRight: Radius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
