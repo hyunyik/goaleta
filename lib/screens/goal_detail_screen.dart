@@ -155,12 +155,25 @@ class GoalDetailScreen extends ConsumerWidget {
                       color: goal.category.getColor(context).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      children: [
+                        Text(
+                          'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          remainingDays == 0 ? '완료!' : 'D-$remainingDays',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -672,10 +685,13 @@ class GoalDetailScreen extends ConsumerWidget {
               onSelected: (value) {
                 if (value == 'edit') {
                   _showEditLogSheet(context, log, ref);
+                } else if (value == 'delete') {
+                  _showDeleteLogDialog(context, log, ref);
                 }
               },
               itemBuilder: (BuildContext context) => [
                 const PopupMenuItem(value: 'edit', child: Text('수정')),
+                const PopupMenuItem(value: 'delete', child: Text('삭제')),
               ],
             ),
           ],
@@ -722,11 +738,80 @@ class GoalDetailScreen extends ConsumerWidget {
       builder: (context) => AddLogBottomSheet(
         goalId: goal.id,
         unit: goal.unit,
-        onSave: (log) {
-          HapticFeedback.mediumImpact();
-          ref.read(logNotifierProvider(goal.id).notifier).addLog(log);
-          ref.invalidate(logsProvider(goal.id));
-          ref.invalidate(completedAmountProvider(goal.id));
+        onSave: (log) async {
+          // Check if a log already exists for this date
+          final logsAsyncValue = ref.read(logsProvider(goal.id));
+          final logs = logsAsyncValue.maybeWhen(
+            data: (l) => l,
+            orElse: () => <LogEntry>[],
+          );
+          
+          final existingLog = logs.firstWhere(
+            (l) => 
+              l.logDate.year == log.logDate.year &&
+              l.logDate.month == log.logDate.month &&
+              l.logDate.day == log.logDate.day &&
+              l.id != log.id, // Exclude the current log if editing
+            orElse: () => LogEntry(goalId: '', amount: -1), // Dummy entry
+          );
+          
+          if (existingLog.amount != -1) {
+            // Log exists for this date, show dialog
+            final result = await showDialog<String>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('기록이 이미 존재합니다'),
+                content: Text(
+                  '${DateFormat('yyyy.MM.dd').format(log.logDate)}에 이미 ${existingLog.amount.toStringAsFixed(0)} ${goal.unit}의 기록이 있습니다.\n\n새로운 값을 어떻게 처리하시겠습니까?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'cancel'),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'add'),
+                    child: const Text('더하기'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'replace'),
+                    child: const Text('교체'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (result == 'add') {
+              // Add to existing value
+              final updatedLog = existingLog.copyWith(
+                amount: existingLog.amount + log.amount,
+                note: log.note != null 
+                  ? '${existingLog.note ?? ''}\n${log.note}'.trim()
+                  : existingLog.note,
+              );
+              HapticFeedback.mediumImpact();
+              ref.read(logNotifierProvider(goal.id).notifier).addLog(updatedLog);
+              ref.invalidate(logsProvider(goal.id));
+              ref.invalidate(completedAmountProvider(goal.id));
+            } else if (result == 'replace') {
+              // Replace existing value
+              final updatedLog = existingLog.copyWith(
+                amount: log.amount,
+                note: log.note,
+              );
+              HapticFeedback.mediumImpact();
+              ref.read(logNotifierProvider(goal.id).notifier).addLog(updatedLog);
+              ref.invalidate(logsProvider(goal.id));
+              ref.invalidate(completedAmountProvider(goal.id));
+            }
+            // If 'cancel', do nothing
+          } else {
+            // No existing log, just add it
+            HapticFeedback.mediumImpact();
+            ref.read(logNotifierProvider(goal.id).notifier).addLog(log);
+            ref.invalidate(logsProvider(goal.id));
+            ref.invalidate(completedAmountProvider(goal.id));
+          }
         },
       ),
     );

@@ -1,48 +1,87 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/models/goal.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-/// 로컬 저장소 시뮬레이션 (실제로는 Hive 또는 SharedPreferences 사용)
+/// 로컬 저장소 (Hive 사용)
 class LocalStorage {
-  static final Map<String, Goal> _goals = {};
-  static final Map<String, List<LogEntry>> _logs = {};
+  static const String goalsBoxName = 'goals';
+  static const String logsBoxName = 'logs';
+
+  static Future<void> init() async {
+    await Hive.initFlutter();
+    await Hive.openBox<Map>(goalsBoxName);
+    await Hive.openBox<Map>(logsBoxName);
+  }
+
+  static Box<Map> get _goalsBox => Hive.box<Map>(goalsBoxName);
+  static Box<Map> get _logsBox => Hive.box<Map>(logsBoxName);
 
   static Future<void> saveGoal(Goal goal) async {
-    _goals[goal.id] = goal;
+    await _goalsBox.put(goal.id, goal.toJson());
   }
 
   static Future<void> deleteGoal(String goalId) async {
-    _goals.remove(goalId);
-    _logs.remove(goalId);
+    await _goalsBox.delete(goalId);
+    await _logsBox.delete(goalId);
   }
 
   static Future<List<Goal>> getAllGoals() async {
-    return _goals.values.toList();
+    final goals = <Goal>[];
+    for (var entry in _goalsBox.values) {
+      try {
+        goals.add(Goal.fromJson(Map<String, dynamic>.from(entry)));
+      } catch (e) {
+        print('Error loading goal: $e');
+      }
+    }
+    return goals;
   }
 
   static Future<Goal?> getGoal(String goalId) async {
-    return _goals[goalId];
+    final data = _goalsBox.get(goalId);
+    if (data == null) return null;
+    return Goal.fromJson(Map<String, dynamic>.from(data));
   }
 
   static Future<void> saveLogEntry(LogEntry entry) async {
-    if (!_logs.containsKey(entry.goalId)) {
-      _logs[entry.goalId] = [];
-    }
-    final index = _logs[entry.goalId]!.indexWhere((e) => e.id == entry.id);
+    final logsData = _logsBox.get(entry.goalId);
+    final logs = logsData != null 
+        ? (logsData as Map).values.map((e) => LogEntry.fromJson(Map<String, dynamic>.from(e))).toList()
+        : <LogEntry>[];
+    
+    final index = logs.indexWhere((e) => e.id == entry.id);
     if (index >= 0) {
-      _logs[entry.goalId]![index] = entry;
+      logs[index] = entry;
     } else {
-      _logs[entry.goalId]!.add(entry);
+      logs.add(entry);
     }
+    
+    final logsMap = {for (var log in logs) log.id: log.toJson()};
+    await _logsBox.put(entry.goalId, logsMap);
   }
 
   static Future<void> deleteLogEntry(String goalId, String logId) async {
-    if (_logs.containsKey(goalId)) {
-      _logs[goalId]!.removeWhere((e) => e.id == logId);
+    final logsData = _logsBox.get(goalId);
+    if (logsData != null) {
+      final logsMap = Map<String, dynamic>.from(logsData);
+      logsMap.remove(logId);
+      await _logsBox.put(goalId, logsMap);
     }
   }
 
   static Future<List<LogEntry>> getLogsByGoal(String goalId) async {
-    return _logs[goalId] ?? [];
+    final logsData = _logsBox.get(goalId);
+    if (logsData == null) return [];
+    
+    final logs = <LogEntry>[];
+    for (var entry in (logsData as Map).values) {
+      try {
+        logs.add(LogEntry.fromJson(Map<String, dynamic>.from(entry)));
+      } catch (e) {
+        print('Error loading log: $e');
+      }
+    }
+    return logs;
   }
 }
 
