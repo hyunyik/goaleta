@@ -120,7 +120,7 @@ class GoalCard extends ConsumerWidget {
     DateFormat dateFormatter,
   ) {
     return SizedBox(
-      height: 200,
+      height: 220,
       child: Column(
         children: [
           // Top 2/3: Background image with title
@@ -162,9 +162,10 @@ class GoalCard extends ConsumerWidget {
                       child: Text(
                         goal.title,
                         style: const TextStyle(
-                          fontSize: 44,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
+                          height: 1.1,
                           shadows: [
                             Shadow(
                               offset: Offset(0, 2),
@@ -199,44 +200,93 @@ class GoalCard extends ConsumerWidget {
             ),
           ),
 
-          // Bottom 1/3: White background with Percent and ETA
-          Expanded(
-            flex: 1,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+          // Bottom section: Progress bar and info
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Progress bar with percentage
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: percentage / 100,
+                          minHeight: 12,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            goal.category.getColor(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${percentage.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: goal.category.getColor(context),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Progress %
-                  Text(
-                    '${percentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: goal.category.getColor(context),
+                const SizedBox(height: 12),
+                // Start date and ETA
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Start date
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.play_circle_outline,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateFormatter.format(goal.startDate),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-
-                  // ETA
-                  Text(
-                    estimatedDate != null
-                        ? 'ETA ${dateFormatter.format(estimatedDate)}'
-                        : 'ETA -',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
+                    // ETA
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.flag_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          estimatedDate != null
+                              ? dateFormatter.format(estimatedDate)
+                              : '-',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
