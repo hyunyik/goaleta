@@ -20,6 +20,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   late TextEditingController titleController;
   late TextEditingController unitController;
   late TextEditingController totalAmountController;
+  late TextEditingController startingAmountController;
   late DateTime selectedDate;
   late bool excludeWeekends;
   late GoalCategory selectedCategory;
@@ -32,6 +33,9 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     totalAmountController = TextEditingController(
       text: widget.existingGoal?.totalAmount.toString() ?? '',
     );
+    startingAmountController = TextEditingController(
+      text: widget.existingGoal?.startingAmount.toString() ?? '0',
+    );
     selectedDate = widget.existingGoal?.startDate ?? DateTime.now();
     excludeWeekends = widget.existingGoal?.excludeWeekends ?? false;
     selectedCategory = widget.existingGoal?.category ?? GoalCategory.custom;
@@ -42,6 +46,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     titleController.dispose();
     unitController.dispose();
     totalAmountController.dispose();
+    startingAmountController.dispose();
     super.dispose();
   }
 
@@ -59,6 +64,12 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       return;
     }
 
+    final startingAmount = double.tryParse(startingAmountController.text) ?? 0;
+    if (startingAmount < 0) {
+      _showErrorSnackBar('시작값은 0 이상이어야 합니다');
+      return;
+    }
+
     final goal = (widget.existingGoal ?? Goal(
       title: '',
       unit: '',
@@ -67,6 +78,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       title: titleController.text.trim(),
       unit: unitController.text.trim(),
       totalAmount: totalAmount,
+      startingAmount: startingAmount,
       startDate: selectedDate,
       excludeWeekends: excludeWeekends,
       category: selectedCategory,
@@ -229,6 +241,22 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+
+            // 시작값 (누적값이 이미 있는 경우)
+            TextField(
+              controller: startingAmountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: '시작값 (선택)',
+                hintText: '예: 100 (이미 100페이지를 읽은 상태)',
+                prefixIcon: const Icon(Icons.start),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                helperText: '목표 시작 시 이미 달성한 누적량 (기본값: 0)',
+              ),
             ),
             const SizedBox(height: 20),
 

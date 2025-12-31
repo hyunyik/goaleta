@@ -67,6 +67,7 @@ class Goal {
   final String title;
   final String unit; // 페이지, 분, 개, 세트 등
   final double totalAmount;
+  final double startingAmount; // 시작 시점의 누적량 (기본값 0)
   final DateTime startDate;
   final bool excludeWeekends;
   final DateTime createdAt;
@@ -79,6 +80,7 @@ class Goal {
     required this.title,
     required this.unit,
     required this.totalAmount,
+    this.startingAmount = 0,
     DateTime? startDate,
     this.excludeWeekends = false,
     DateTime? createdAt,
@@ -90,12 +92,14 @@ class Goal {
         createdAt = createdAt ?? DateTime.now();
 
   double getProgressPercentage(double completedAmount) {
-    if (totalAmount <= 0) return 0;
-    return (completedAmount / totalAmount * 100).clamp(0, 100);
+    final effectiveTotal = totalAmount - startingAmount;
+    if (effectiveTotal <= 0) return 0;
+    return (completedAmount / effectiveTotal * 100).clamp(0, 100);
   }
 
   double getRemainingAmount(double completedAmount) {
-    return (totalAmount - completedAmount).clamp(0, double.infinity);
+    final effectiveTotal = totalAmount - startingAmount;
+    return (effectiveTotal - completedAmount).clamp(0, double.infinity);
   }
 
   // Goal 객체를 복사본으로 만들기
@@ -104,6 +108,7 @@ class Goal {
     String? title,
     String? unit,
     double? totalAmount,
+    double? startingAmount,
     DateTime? startDate,
     bool? excludeWeekends,
     DateTime? createdAt,
@@ -116,6 +121,7 @@ class Goal {
       title: title ?? this.title,
       unit: unit ?? this.unit,
       totalAmount: totalAmount ?? this.totalAmount,
+      startingAmount: startingAmount ?? this.startingAmount,
       startDate: startDate ?? this.startDate,
       excludeWeekends: excludeWeekends ?? this.excludeWeekends,
       createdAt: createdAt ?? this.createdAt,
@@ -132,6 +138,7 @@ class Goal {
       'title': title,
       'unit': unit,
       'totalAmount': totalAmount,
+      'startingAmount': startingAmount,
       'startDate': startDate.toIso8601String(),
       'excludeWeekends': excludeWeekends,
       'createdAt': createdAt.toIso8601String(),
@@ -147,6 +154,9 @@ class Goal {
       title: json['title'],
       unit: json['unit'],
       totalAmount: (json['totalAmount'] as num).toDouble(),
+      startingAmount: json['startingAmount'] != null
+          ? (json['startingAmount'] as num).toDouble()
+          : 0,
       startDate: DateTime.parse(json['startDate']),
       excludeWeekends: json['excludeWeekends'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),

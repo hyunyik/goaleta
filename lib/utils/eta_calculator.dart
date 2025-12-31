@@ -2,12 +2,13 @@ import 'package:goaleta/models/goal.dart';
 
 class ETACalculator {
   /// 단순 평균 기반 ETA 계산
-  /// 
+  ///
   /// [completedAmount]: 현재까지 완료된 양
   /// [totalAmount]: 목표 총량
   /// [startDate]: 목표 시작일
   /// [logs]: 기록 리스트
-  /// 
+  /// [startingAmount]: 시작 시점의 누적량 (기본값 0)
+  ///
   /// 반환: {'remainingDays': 남은 일수, 'estimatedDate': 예상 완료일}
   static Map<String, dynamic> calculateSimpleAverageETA({
     required double completedAmount,
@@ -15,8 +16,11 @@ class ETACalculator {
     required DateTime startDate,
     required List<LogEntry> logs,
     bool excludeWeekends = false,
+    double startingAmount = 0,
   }) {
-    if (completedAmount >= totalAmount) {
+    final effectiveTotal = totalAmount - startingAmount;
+
+    if (completedAmount >= effectiveTotal) {
       return {
         'remainingDays': 0,
         'estimatedDate': DateTime.now(),
@@ -24,25 +28,27 @@ class ETACalculator {
       };
     }
 
-    final remaining = totalAmount - completedAmount;
+    final remaining = effectiveTotal - completedAmount;
 
     double dailyAverage;
-    
+
     // 기록이 있으면 최근 14일 평균 사용, 없으면 전체 평균
     if (logs.isNotEmpty) {
       final now = DateTime.now();
       final cutoffDate = DateTime(now.year, now.month, now.day - 14);
-      
+
       // 최근 14일 기록 필터링
-      final recentLogs = logs.where((log) => 
-        log.logDate.isAfter(cutoffDate) || 
-        log.logDate.isAtSameMomentAs(cutoffDate)
-      ).toList();
-      
+      final recentLogs = logs
+          .where((log) =>
+              log.logDate.isAfter(cutoffDate) ||
+              log.logDate.isAtSameMomentAs(cutoffDate))
+          .toList();
+
       if (recentLogs.isNotEmpty) {
         // 최근 14일 동안 기록이 있는 날짜들의 일평균
         final groupedByDate = groupLogsByDate(recentLogs);
-        final totalRecent = groupedByDate.values.fold<double>(0, (sum, val) => sum + val);
+        final totalRecent =
+            groupedByDate.values.fold<double>(0, (sum, val) => sum + val);
         final daysWithRecords = groupedByDate.length;
         dailyAverage = totalRecent / daysWithRecords;
       } else {
@@ -57,14 +63,15 @@ class ETACalculator {
       if (elapsedDays == 0) elapsedDays = 1;
       dailyAverage = completedAmount / elapsedDays;
     }
-    
+
     if (dailyAverage <= 0) dailyAverage = 0.1; // 최소 0.1
 
     // 남은 기간 계산
     int remainingDays = (remaining / dailyAverage).ceil();
-    
+
     // 예상 완료일
-    DateTime estimatedDate = _addDays(DateTime.now(), remainingDays, excludeWeekends);
+    DateTime estimatedDate =
+        _addDays(DateTime.now(), remainingDays, excludeWeekends);
 
     return {
       'remainingDays': remainingDays,
@@ -81,15 +88,18 @@ class ETACalculator {
     required List<LogEntry> logs,
     bool excludeWeekends = false,
     int recentDays = 14,
+    double startingAmount = 0,
   }) {
-    if (completedAmount >= totalAmount) {
+    final effectiveTotal = totalAmount - startingAmount;
+
+    if (completedAmount >= effectiveTotal) {
       return {
         'remainingDays': 0,
         'estimatedDate': DateTime.now(),
       };
     }
 
-    final remaining = totalAmount - completedAmount;
+    final remaining = effectiveTotal - completedAmount;
 
     // 최근 N일 동안의 기록 필터링
     final now = DateTime.now();
@@ -127,7 +137,8 @@ class ETACalculator {
     int remainingDays = (remaining / dailyAverage).ceil();
 
     // 예상 완료일
-    DateTime estimatedDate = _addDays(DateTime.now(), remainingDays, excludeWeekends);
+    DateTime estimatedDate =
+        _addDays(DateTime.now(), remainingDays, excludeWeekends);
 
     return {
       'remainingDays': remainingDays,
@@ -151,7 +162,8 @@ class ETACalculator {
     final today = DateTime(now.year, now.month, now.day);
 
     while (current.isBefore(today) || current.isAtSameMomentAs(today)) {
-      if (current.weekday != DateTime.saturday && current.weekday != DateTime.sunday) {
+      if (current.weekday != DateTime.saturday &&
+          current.weekday != DateTime.sunday) {
         days++;
       }
       current = current.add(const Duration(days: 1));
@@ -171,7 +183,8 @@ class ETACalculator {
 
     while (addedDays < days) {
       result = result.add(const Duration(days: 1));
-      if (result.weekday != DateTime.saturday && result.weekday != DateTime.sunday) {
+      if (result.weekday != DateTime.saturday &&
+          result.weekday != DateTime.sunday) {
         addedDays++;
       }
     }
@@ -183,7 +196,8 @@ class ETACalculator {
   static Map<DateTime, double> groupLogsByDate(List<LogEntry> logs) {
     final grouped = <DateTime, double>{};
     for (final log in logs) {
-      final date = DateTime(log.logDate.year, log.logDate.month, log.logDate.day);
+      final date =
+          DateTime(log.logDate.year, log.logDate.month, log.logDate.day);
       grouped[date] = (grouped[date] ?? 0) + log.amount;
     }
     return grouped;

@@ -38,11 +38,13 @@ class GoalDetailScreen extends ConsumerWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const SizedBox.shrink(), // Empty title, we'll put it on the background
+        title: const SizedBox
+            .shrink(), // Empty title, we'll put it on the background
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
-        systemOverlayStyle: SystemUiOverlayStyle.light, // Light status bar icons
+        systemOverlayStyle:
+            SystemUiOverlayStyle.light, // Light status bar icons
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -60,17 +62,25 @@ class GoalDetailScreen extends ConsumerWidget {
           final remaining = goal.getRemainingAmount(completedAmount);
           final percentage = goal.getProgressPercentage(completedAmount);
 
-          final etaData = ETACalculator.calculateSimpleAverageETA(
-            completedAmount: completedAmount,
-            totalAmount: goal.totalAmount,
-            startDate: goal.startDate,
-            logs: logs.cast<LogEntry>(),
-            excludeWeekends: goal.excludeWeekends,
-          );
+          final hasRecords = logs.isNotEmpty;
 
-          final estimatedDate = etaData['estimatedDate'] as DateTime;
-          final remainingDays = etaData['remainingDays'] as int;
-          final dailyAverage = etaData['dailyAverage'] as double;
+          final etaData = hasRecords
+              ? ETACalculator.calculateSimpleAverageETA(
+                  completedAmount: completedAmount,
+                  totalAmount: goal.totalAmount,
+                  startDate: goal.startDate,
+                  logs: logs.cast<LogEntry>(),
+                  excludeWeekends: goal.excludeWeekends,
+                  startingAmount: goal.startingAmount,
+                )
+              : null;
+
+          final estimatedDate =
+              etaData != null ? etaData['estimatedDate'] as DateTime : null;
+          final remainingDays =
+              etaData != null ? etaData['remainingDays'] as int : null;
+          final dailyAverage =
+              etaData != null ? etaData['dailyAverage'] as double : null;
 
           final dateFormatter = DateFormat('yyyy.MM.dd');
           final backgroundImage = _getBackgroundImage();
@@ -84,308 +94,366 @@ class GoalDetailScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                // 상단: Background image header with title and bar chart
-                Container(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    MediaQuery.of(context).padding.top + 56, // Status bar + AppBar height
-                    24,
-                    32,
-                  ),
-                  decoration: BoxDecoration(
-                    image: backgroundImage != null
-                        ? DecorationImage(
-                            image: AssetImage(backgroundImage),
-                            fit: BoxFit.cover,
-                            colorFilter: ColorFilter.mode(
-                              Colors.black.withOpacity(0.4),
-                              BlendMode.darken,
-                            ),
-                          )
-                        : null,
-                    gradient: backgroundImage == null
-                        ? LinearGradient(
-                            colors: [
-                              goal.category.getColor(context).withOpacity(0.7),
-                              goal.category.getColor(context),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title (2 lines max)
-                      Text(
-                        goal.title,
-                        style: const TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(0, 2),
-                              blurRadius: 8,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Recent 14 days bar chart (transparent style)
-                      _buildTransparentBarChart(context, logs.cast<LogEntry>()),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ETA text with colored background
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  // 상단: Background image header with title and bar chart
+                  Container(
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      MediaQuery.of(context).padding.top +
+                          56, // Status bar + AppBar height
+                      24,
+                      32,
+                    ),
                     decoration: BoxDecoration(
-                      color: goal.category.getColor(context).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      image: backgroundImage != null
+                          ? DecorationImage(
+                              image: AssetImage(backgroundImage),
+                              fit: BoxFit.cover,
+                              colorFilter: ColorFilter.mode(
+                                Colors.black.withOpacity(0.4),
+                                BlendMode.darken,
+                              ),
+                            )
+                          : null,
+                      gradient: backgroundImage == null
+                          ? LinearGradient(
+                              colors: [
+                                goal.category
+                                    .getColor(context)
+                                    .withOpacity(0.7),
+                                goal.category.getColor(context),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Title (2 lines max)
                         Text(
-                          'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          goal.title,
+                          style: const TextStyle(
+                            fontSize: 44,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 2),
+                                blurRadius: 8,
+                                color: Colors.black54,
+                              ),
+                            ],
                           ),
-                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          remainingDays == 0 ? '완료!' : 'D-$remainingDays',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black.withOpacity(0.7),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        const SizedBox(height: 32),
+
+                        // Recent 14 days bar chart (transparent style)
+                        _buildTransparentBarChart(
+                            context, logs.cast<LogEntry>()),
                       ],
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                // Three rounded cards in single row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      // Progress card
-                      Expanded(
-                        child: _buildInfoCard(
-                          context,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                '진행률',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                '${percentage.toStringAsFixed(0)}%',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${completedAmount.toStringAsFixed(0)}/${goal.totalAmount.toStringAsFixed(0)}',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                  // ETA text with colored background
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color:
+                            goal.category.getColor(context).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 8),
-                      
-                      // Average record card
-                      Expanded(
-                        child: _buildInfoCard(
-                          context,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                '일평균',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                dailyAverage.toStringAsFixed(1),
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                goal.unit,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      
-                      // Best record card
-                      Expanded(
-                        child: _buildInfoCard(
-                          context,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                '최고 기록',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                logs.isEmpty 
-                                  ? '0'
-                                  : logs.map((l) => l.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(0),
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                goal.unit,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.black.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 기록 리스트
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.history,
-                                size: 20,
-                                color: Colors.black.withOpacity(0.7),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '기록 (${logs.length}건)',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ],
+                          Text(
+                            estimatedDate != null
+                                ? 'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}'
+                                : 'ETA -',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            textAlign: TextAlign.center,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: () {
-                              _showAddLogSheet(context, ref);
-                            },
+                          const SizedBox(height: 4),
+                          Text(
+                            remainingDays != null
+                                ? (remainingDays == 0
+                                    ? '완료!'
+                                    : 'D-$remainingDays')
+                                : 'D-day -',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black.withOpacity(0.7),
+                                ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
-                      if (logs.isEmpty)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(48),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Three rounded cards in single row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        // Progress card
+                        Expanded(
+                          child: _buildInfoCard(
+                            context,
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.edit_calendar,
-                                  size: 64,
-                                  color: Colors.black.withOpacity(0.2),
+                                Text(
+                                  '진행률',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  '아직 기록이 없습니다',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.black.withOpacity(0.4),
-                                  ),
+                                  '${percentage.toStringAsFixed(0)}%',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 4),
                                 Text(
-                                  '아래 + 버튼을 눌러 기록을 추가해보세요',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.black.withOpacity(0.3),
-                                  ),
+                                  '${completedAmount.toStringAsFixed(0)}/${(goal.totalAmount - goal.startingAmount).toStringAsFixed(0)}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
                                 ),
                               ],
                             ),
                           ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          itemCount: logs.length,
-                          itemBuilder: (context, index) {
-                            final log = logs[index];
-                            return _buildLogItem(context, log, ref);
-                          },
                         ),
-                    ],
-                  ),
-                ),
+                        const SizedBox(width: 8),
 
-                const SizedBox(height: 24),
-              ],
+                        // Average record card
+                        Expanded(
+                          child: _buildInfoCard(
+                            context,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '일평균',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  dailyAverage != null
+                                      ? dailyAverage.toStringAsFixed(1)
+                                      : '-',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  goal.unit,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Best record card
+                        Expanded(
+                          child: _buildInfoCard(
+                            context,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '최고 기록',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  logs.isEmpty
+                                      ? '0'
+                                      : logs
+                                          .map((l) => l.amount)
+                                          .reduce((a, b) => a > b ? a : b)
+                                          .toStringAsFixed(0),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  goal.unit,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 기록 리스트
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  size: 20,
+                                  color: Colors.black.withOpacity(0.7),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '기록 (${logs.length}건)',
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () {
+                                _showAddLogSheet(context, ref);
+                              },
+                            ),
+                          ],
+                        ),
+                        if (logs.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(48),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.edit_calendar,
+                                    size: 64,
+                                    color: Colors.black.withOpacity(0.2),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    '아직 기록이 없습니다',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Colors.black.withOpacity(0.4),
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '아래 + 버튼을 눌러 기록을 추가해보세요',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Colors.black.withOpacity(0.3),
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            itemCount: logs.length,
+                            itemBuilder: (context, index) {
+                              final log = logs[index];
+                              return _buildLogItem(context, log, ref);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-          ),
           );
         },
       ),
     );
   }
 
-  Widget _buildETAItem(BuildContext context, String label, String value, Color statusColor) {
+  Widget _buildETAItem(
+      BuildContext context, String label, String value, Color statusColor) {
     return Column(
       children: [
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.black.withOpacity(0.6),
-          ),
+                color: Colors.black.withOpacity(0.6),
+              ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -403,9 +471,9 @@ class GoalDetailScreen extends ConsumerWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
             ),
           ],
         ),
@@ -436,6 +504,7 @@ class GoalDetailScreen extends ConsumerWidget {
     final data = ETACalculator.getRecentDaysData(logs: logs, days: 14);
     final maxValue = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
     final maxHeight = maxValue > 0 ? maxValue : 1.0;
+    final hasAnyData = data.any((value) => value > 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,56 +527,76 @@ class GoalDetailScreen extends ConsumerWidget {
         const SizedBox(height: 16),
         SizedBox(
           height: 120,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(
-              data.length,
-              (index) {
-                final value = data[index];
-                final height = (value / maxHeight * 100).clamp(8.0, 100.0);
+          child: hasAnyData
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(
+                    data.length,
+                    (index) {
+                      final value = data[index];
+                      final height =
+                          (value / maxHeight * 100).clamp(8.0, 100.0);
 
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // Count above bar
-                        Text(
-                          value > 0 ? value.toStringAsFixed(0) : '',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(0, 1),
-                                blurRadius: 2,
-                                color: Colors.black54,
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              // Count above bar
+                              Text(
+                                value > 0 ? value.toStringAsFixed(0) : '',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(0, 1),
+                                      blurRadius: 2,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              // Transparent bar
+                              Container(
+                                height: height,
+                                decoration: BoxDecoration(
+                                  color: Colors.white
+                                      .withOpacity(value > 0 ? 0.7 : 0.2),
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(4),
+                                    topRight: Radius.circular(4),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        // Transparent bar
-                        Container(
-                          height: height,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(value > 0 ? 0.7 : 0.2),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(4),
-                              topRight: Radius.circular(4),
-                            ),
-                          ),
+                      );
+                    },
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    '최근 14일간 기록 없음',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 4,
+                          color: Colors.black54,
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-          ),
+                ),
         ),
       ],
     );
@@ -529,7 +618,8 @@ class GoalDetailScreen extends ConsumerWidget {
           final value = data[index];
           final height = (value / maxHeight * 100).clamp(8.0, 100.0);
           // Calculate color intensity based on value
-          final colorOpacity = value > 0 ? (value / maxValue * 0.7 + 0.3).clamp(0.3, 1.0) : 0.15;
+          final colorOpacity =
+              value > 0 ? (value / maxValue * 0.7 + 0.3).clamp(0.3, 1.0) : 0.15;
 
           return Expanded(
             child: Padding(
@@ -541,16 +631,18 @@ class GoalDetailScreen extends ConsumerWidget {
                   Text(
                     value > 0 ? value.toStringAsFixed(0) : '',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: 9,
-                      color: Colors.black.withOpacity(0.6),
-                    ),
+                          fontSize: 9,
+                          color: Colors.black.withOpacity(0.6),
+                        ),
                   ),
                   const SizedBox(height: 2),
                   // Bar with gradient color based on value
                   Container(
                     height: height,
                     decoration: BoxDecoration(
-                      color: goal.category.getColor(context).withOpacity(colorOpacity),
+                      color: goal.category
+                          .getColor(context)
+                          .withOpacity(colorOpacity),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(3),
                         topRight: Radius.circular(3),
@@ -637,9 +729,9 @@ class GoalDetailScreen extends ConsumerWidget {
               child: Text(
                 dateStr,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.black.withOpacity(0.5),
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: Colors.black.withOpacity(0.5),
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ),
             // Vertical separator
@@ -654,9 +746,9 @@ class GoalDetailScreen extends ConsumerWidget {
               child: Text(
                 '${log.amount.toStringAsFixed(0)} ${goal.unit}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
               ),
             ),
             // Note or menu
@@ -666,8 +758,8 @@ class GoalDetailScreen extends ConsumerWidget {
                 child: Text(
                   log.note!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.black.withOpacity(0.5),
-                  ),
+                        color: Colors.black.withOpacity(0.5),
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -729,6 +821,31 @@ class GoalDetailScreen extends ConsumerWidget {
   void _showAddLogSheet(BuildContext context, WidgetRef ref) {
     HapticFeedback.lightImpact();
     HapticFeedback.lightImpact();
+
+    // Calculate previous cumulative total
+    final logsAsyncValue = ref.read(logsProvider(goal.id));
+    final logs = logsAsyncValue.maybeWhen(
+      data: (l) => l,
+      orElse: () => <LogEntry>[],
+    );
+
+    // Sort logs by date and calculate cumulative total
+    final sortedLogs = List<LogEntry>.from(logs)
+      ..sort((a, b) => a.logDate.compareTo(b.logDate));
+
+    double previousCumulativeTotal = 0;
+    for (final log in sortedLogs) {
+      previousCumulativeTotal += log.amount;
+    }
+
+    // Find latest log date
+    final DateTime? latestLogDate =
+        sortedLogs.isNotEmpty ? sortedLogs.last.logDate : null;
+
+    // Get all existing log dates
+    final List<DateTime> existingLogDates =
+        logs.map((log) => log.logDate).toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -738,6 +855,11 @@ class GoalDetailScreen extends ConsumerWidget {
       builder: (context) => AddLogBottomSheet(
         goalId: goal.id,
         unit: goal.unit,
+        previousCumulativeTotal: previousCumulativeTotal,
+        goalStartDate: goal.startDate,
+        startingAmount: goal.startingAmount,
+        latestLogDate: latestLogDate,
+        existingLogDates: existingLogDates,
         onSave: (log) async {
           // Check if a log already exists for this date
           final logsAsyncValue = ref.read(logsProvider(goal.id));
@@ -745,16 +867,16 @@ class GoalDetailScreen extends ConsumerWidget {
             data: (l) => l,
             orElse: () => <LogEntry>[],
           );
-          
+
           final existingLog = logs.firstWhere(
-            (l) => 
-              l.logDate.year == log.logDate.year &&
-              l.logDate.month == log.logDate.month &&
-              l.logDate.day == log.logDate.day &&
-              l.id != log.id, // Exclude the current log if editing
+            (l) =>
+                l.logDate.year == log.logDate.year &&
+                l.logDate.month == log.logDate.month &&
+                l.logDate.day == log.logDate.day &&
+                l.id != log.id, // Exclude the current log if editing
             orElse: () => LogEntry(goalId: '', amount: -1), // Dummy entry
           );
-          
+
           if (existingLog.amount != -1) {
             // Log exists for this date, show dialog
             final result = await showDialog<String>(
@@ -780,17 +902,19 @@ class GoalDetailScreen extends ConsumerWidget {
                 ],
               ),
             );
-            
+
             if (result == 'add') {
               // Add to existing value
               final updatedLog = existingLog.copyWith(
                 amount: existingLog.amount + log.amount,
-                note: log.note != null 
-                  ? '${existingLog.note ?? ''}\n${log.note}'.trim()
-                  : existingLog.note,
+                note: log.note != null
+                    ? '${existingLog.note ?? ''}\n${log.note}'.trim()
+                    : existingLog.note,
               );
               HapticFeedback.mediumImpact();
-              ref.read(logNotifierProvider(goal.id).notifier).addLog(updatedLog);
+              ref
+                  .read(logNotifierProvider(goal.id).notifier)
+                  .addLog(updatedLog);
               ref.invalidate(logsProvider(goal.id));
               ref.invalidate(completedAmountProvider(goal.id));
             } else if (result == 'replace') {
@@ -800,7 +924,9 @@ class GoalDetailScreen extends ConsumerWidget {
                 note: log.note,
               );
               HapticFeedback.mediumImpact();
-              ref.read(logNotifierProvider(goal.id).notifier).addLog(updatedLog);
+              ref
+                  .read(logNotifierProvider(goal.id).notifier)
+                  .addLog(updatedLog);
               ref.invalidate(logsProvider(goal.id));
               ref.invalidate(completedAmountProvider(goal.id));
             }
@@ -818,6 +944,14 @@ class GoalDetailScreen extends ConsumerWidget {
   }
 
   void _showEditLogSheet(BuildContext context, LogEntry log, WidgetRef ref) {
+    // Get all existing log dates for the calendar
+    final logsAsyncValue = ref.read(logsProvider(goal.id));
+    final logs = logsAsyncValue.maybeWhen(
+      data: (l) => l,
+      orElse: () => <LogEntry>[],
+    );
+    final List<DateTime> existingLogDates = logs.map((l) => l.logDate).toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -828,6 +962,9 @@ class GoalDetailScreen extends ConsumerWidget {
         goalId: goal.id,
         unit: goal.unit,
         existingLog: log,
+        goalStartDate: goal.startDate,
+        startingAmount: goal.startingAmount,
+        existingLogDates: existingLogDates,
         onSave: (updatedLog) {
           ref.read(logNotifierProvider(goal.id).notifier).updateLog(updatedLog);
           ref.invalidate(logsProvider(goal.id));
@@ -837,7 +974,8 @@ class GoalDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, IconData icon, String label, String value) {
+  Widget _buildStatItem(
+      BuildContext context, IconData icon, String label, String value) {
     return Column(
       children: [
         Icon(icon, size: 20, color: goal.category.getColor(context)),
@@ -845,15 +983,15 @@ class GoalDetailScreen extends ConsumerWidget {
         Text(
           value,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
         ),
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.black.withOpacity(0.5),
-          ),
+                color: Colors.black.withOpacity(0.5),
+              ),
         ),
       ],
     );
@@ -867,11 +1005,14 @@ class GoalDetailScreen extends ConsumerWidget {
     return uniqueDates.length;
   }
 
-  Color _getETAStatusColor(BuildContext context, int remainingDays, double dailyAverage, double remaining) {
-    final daysNeeded = dailyAverage > 0 ? (remaining / dailyAverage).ceil() : 999;
+  Color _getETAStatusColor(BuildContext context, int remainingDays,
+      double dailyAverage, double remaining) {
+    final daysNeeded =
+        dailyAverage > 0 ? (remaining / dailyAverage).ceil() : 999;
     if (remainingDays == 0) return Colors.green;
     if (daysNeeded <= remainingDays) return Colors.green; // On track
-    if (daysNeeded <= remainingDays * 1.5) return Colors.orange; // Slightly behind
+    if (daysNeeded <= remainingDays * 1.5)
+      return Colors.orange; // Slightly behind
     return Colors.red; // Far behind
   }
 }

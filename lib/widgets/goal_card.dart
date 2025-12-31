@@ -62,15 +62,21 @@ class GoalCard extends ConsumerWidget {
   }) {
     final percentage = goal.getProgressPercentage(completedAmount);
 
-    final etaData = ETACalculator.calculateSimpleAverageETA(
-      completedAmount: completedAmount,
-      totalAmount: goal.totalAmount,
-      startDate: goal.startDate,
-      logs: logs,
-      excludeWeekends: goal.excludeWeekends,
-    );
+    final hasRecords = logs.isNotEmpty;
 
-    final estimatedDate = etaData['estimatedDate'] as DateTime;
+    final etaData = hasRecords
+        ? ETACalculator.calculateSimpleAverageETA(
+            completedAmount: completedAmount,
+            totalAmount: goal.totalAmount,
+            startDate: goal.startDate,
+            logs: logs,
+            excludeWeekends: goal.excludeWeekends,
+            startingAmount: goal.startingAmount,
+          )
+        : null;
+
+    final estimatedDate =
+        etaData != null ? etaData['estimatedDate'] as DateTime : null;
     final dateFormatter = DateFormat('yyyy.MM.dd');
 
     // Background image path based on category
@@ -110,7 +116,7 @@ class GoalCard extends ConsumerWidget {
     BuildContext context,
     String? backgroundImage,
     double percentage,
-    DateTime estimatedDate,
+    DateTime? estimatedDate,
     DateFormat dateFormatter,
   ) {
     return SizedBox(
@@ -220,7 +226,9 @@ class GoalCard extends ConsumerWidget {
 
                   // ETA
                   Text(
-                    'ETA ${dateFormatter.format(estimatedDate)}',
+                    estimatedDate != null
+                        ? 'ETA ${dateFormatter.format(estimatedDate)}'
+                        : 'ETA -',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
