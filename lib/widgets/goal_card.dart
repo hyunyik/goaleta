@@ -5,6 +5,7 @@ import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/utils/eta_calculator.dart';
 import 'package:goaleta/screens/goal_detail_screen.dart';
+import 'package:goaleta/widgets/running_cat.dart';
 import 'package:animations/animations.dart';
 
 class GoalCard extends ConsumerWidget {
@@ -77,6 +78,8 @@ class GoalCard extends ConsumerWidget {
 
     final estimatedDate =
         etaData != null ? etaData['estimatedDate'] as DateTime : null;
+    final dailyAverage =
+        etaData != null ? etaData['dailyAverage'] as double : 0.0;
     final dateFormatter = DateFormat('yyyy.MM.dd');
 
     // Background image path based on category
@@ -103,6 +106,7 @@ class GoalCard extends ConsumerWidget {
             percentage,
             estimatedDate,
             dateFormatter,
+            dailyAverage,
           );
         },
         openBuilder: (context, closeContainer) {
@@ -118,6 +122,7 @@ class GoalCard extends ConsumerWidget {
     double percentage,
     DateTime? estimatedDate,
     DateFormat dateFormatter,
+    double dailyAverage,
   ) {
     return SizedBox(
       height: 220,
@@ -212,19 +217,41 @@ class GoalCard extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Progress bar with percentage
+                // Progress bar with running cat and percentage
                 Row(
                   children: [
                     Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: percentage / 100,
-                          minHeight: 12,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            goal.category.getColor(context),
-                          ),
+                      child: SizedBox(
+                        height: 32,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            // Progress bar at bottom
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: SizedBox(
+                                height: 12,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: percentage / 100,
+                                    minHeight: 12,
+                                    backgroundColor: Colors.grey[200],
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      goal.category.getColor(context),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Running cat
+                            _buildRunningCat(
+                              context,
+                              percentage,
+                              dailyAverage,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -313,7 +340,31 @@ class GoalCard extends ConsumerWidget {
         return 'assets/images/custom.png'; // Use gradient for custom category
     }
   }
-
+  Widget _buildRunningCat(
+    BuildContext context,
+    double percentage,
+    double dailyAverage,
+  ) {
+    // Calculate position based on percentage (with padding for cat size)
+    final progress = (percentage / 100).clamp(0.0, 1.0);
+    
+    return Align(
+      alignment: Alignment(
+        // Map progress from 0-1 to alignment from -1 to 1
+        // Offset slightly to account for cat width
+        (progress * 2 - 1).clamp(-1.0, 0.9),
+        0.0,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: RunningCat(
+          progress: progress,
+          speed: dailyAverage,
+          color: goal.category.getColor(context),
+        ),
+      ),
+    );
+  }
   void _showDeleteConfirm(BuildContext context) {
     showDialog(
       context: context,
