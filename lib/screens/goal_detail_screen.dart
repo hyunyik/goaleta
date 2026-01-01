@@ -159,50 +159,86 @@ class GoalDetailScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
-                  // ETA text with colored background
+                  // Progress bar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color:
-                            goal.category.getColor(context).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            estimatedDate != null
-                                ? 'ETA ${DateFormat('yyyy.MM.dd').format(estimatedDate)}'
-                                : 'ETA -',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                    child: Column(
+                      children: [
+                        // Progress bar with percentage
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  value: percentage / 100,
+                                  minHeight: 12,
+                                  backgroundColor: Colors.grey[200],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    goal.category.getColor(context),
+                                  ),
                                 ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            remainingDays != null
-                                ? (remainingDays == 0
-                                    ? '완료!'
-                                    : 'D-$remainingDays')
-                                : 'D-day -',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black.withOpacity(0.7),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              '${percentage.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: goal.category.getColor(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Start date and ETA
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Start date
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.play_circle_outline,
+                                  size: 16,
+                                  color: Colors.grey[600],
                                 ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  dateFormatter.format(goal.startDate),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // ETA
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.flag_outlined,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  estimatedDate != null
+                                      ? '${dateFormatter.format(estimatedDate)} (D-${remainingDays ?? 0})'
+                                      : '-',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
 
@@ -408,7 +444,7 @@ class GoalDetailScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    '아래 + 버튼을 눌러 기록을 추가해보세요',
+                                    '위의 + 버튼을 눌러 기록을 추가해보세요',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -526,7 +562,7 @@ class GoalDetailScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 120,
+          height: 80,
           child: hasAnyData
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -536,7 +572,7 @@ class GoalDetailScreen extends ConsumerWidget {
                     (index) {
                       final value = data[index];
                       final height =
-                          (value / maxHeight * 100).clamp(8.0, 100.0);
+                          (value / maxHeight * 60).clamp(6.0, 60.0);
 
                       return Expanded(
                         child: Padding(

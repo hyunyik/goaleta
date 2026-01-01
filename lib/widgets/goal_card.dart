@@ -274,7 +274,7 @@ class GoalCard extends ConsumerWidget {
                         const SizedBox(width: 4),
                         Text(
                           estimatedDate != null
-                              ? dateFormatter.format(estimatedDate)
+                              ? '${dateFormatter.format(estimatedDate)} (D-${estimatedDate.difference(DateTime.now()).inDays})'
                               : '-',
                           style: TextStyle(
                             fontSize: 13,
