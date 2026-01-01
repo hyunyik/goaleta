@@ -10,6 +10,21 @@ import 'dart:math';
 // Provider for selected category filter
 final selectedCategoryProvider = StateProvider<GoalCategory?>((ref) => null);
 
+// Sort options
+enum SortOption {
+  createdDesc('생성일 (최신순)', Icons.access_time),
+  createdAsc('생성일 (오래된순)', Icons.history),
+  progressDesc('진행률 (높은순)', Icons.trending_up),
+  progressAsc('진행률 (낮은순)', Icons.trending_down);
+
+  final String label;
+  final IconData icon;
+  const SortOption(this.label, this.icon);
+}
+
+// Provider for selected sort option
+final selectedSortProvider = StateProvider<SortOption>((ref) => SortOption.createdDesc);
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -145,22 +160,25 @@ class HomeScreen extends ConsumerWidget {
           }
 
           // Filter goals by selected category
-          final filteredGoals = selectedCategory == null
+          var filteredGoals = selectedCategory == null
               ? goals
               : goals.where((g) => g.category == selectedCategory).toList();
+
+          // Apply sorting
+          final sortOption = ref.watch(selectedSortProvider);
+          filteredGoals = _sortGoals(filteredGoals, sortOption, ref);
 
           return Column(
             children: [
               // Category filter chips
               _buildCategoryChips(context, ref, goals),
-              // Reorderable goal list
+              // Sort selector
+              _buildSortSelector(context, ref),
+              // Goal list
               Expanded(
-                child: ReorderableListView.builder(
+                child: ListView.builder(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: filteredGoals.length,
-                  onReorder: (oldIndex, newIndex) {
-                    _onReorder(ref, goals, filteredGoals, oldIndex, newIndex);
-                  },
                   itemBuilder: (context, index) {
                     final goal = filteredGoals[index];
                     return GoalCard(
@@ -257,29 +275,85 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _onReorder(WidgetRef ref, List<Goal> allGoals, List<Goal> filteredGoals, int oldIndex, int newIndex) {
-    // Adjust newIndex for list behavior
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
-    // Reorder within filtered list
-    final movedGoal = filteredGoals[oldIndex];
-    filteredGoals.removeAt(oldIndex);
-    filteredGoals.insert(newIndex, movedGoal);
-
-    // Update all goals order by maintaining filtered goals' new positions
-    // and keeping other goals in their relative positions
-    // For simplicity, we'll just update the createdAt timestamps to maintain order
-    // This is a simplified approach - in a real app, you might want a dedicated order field
+  List<Goal> _sortGoals(List<Goal> goals, SortOption sortOption, WidgetRef ref) {
+    final sorted = List<Goal>.from(goals);
     
-    final now = DateTime.now();
-    for (int i = 0; i < filteredGoals.length; i++) {
-      final updatedGoal = filteredGoals[i].copyWith(
-        createdAt: now.subtract(Duration(minutes: filteredGoals.length - i)),
-      );
-      ref.read(goalsProvider.notifier).updateGoal(updatedGoal);
+    switch (sortOption) {
+      case SortOption.createdDesc:
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case SortOption.createdAsc:
+        sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case SortOption.progressDesc:
+      case SortOption.progressAsc:
+        // For progress sorting, get completed amounts synchronously
+        final progressMap = <String, double>{};
+        for (final goal in goals) {
+          final completedAsync = ref.read(completedAmountProvider(goal.id));
+          final completed = completedAsync.maybeWhen(
+            data: (amount) => amount,
+            orElse: () => 0.0,
+          );
+          progressMap[goal.id] = goal.getProgressPercentage(completed);
+        }
+        
+        if (sortOption == SortOption.progressDesc) {
+          sorted.sort((a, b) => (progressMap[b.id] ?? 0).compareTo(progressMap[a.id] ?? 0));
+        } else {
+          sorted.sort((a, b) => (progressMap[a.id] ?? 0).compareTo(progressMap[b.id] ?? 0));
+        }
+        break;
     }
+    
+    return sorted;
+  }
+
+  Widget _buildSortSelector(BuildContext context, WidgetRef ref) {
+    final selectedSort = ref.watch(selectedSortProvider);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            Icons.sort,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonFormField<SortOption>(
+              value: selectedSort,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              items: SortOption.values.map((option) {
+                return DropdownMenuItem(
+                  value: option,
+                  child: Row(
+                    children: [
+                      Icon(option.icon, size: 16),
+                      const SizedBox(width: 8),
+                      Text(option.label),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  ref.read(selectedSortProvider.notifier).state = value;
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddGoalSheet(BuildContext context, WidgetRef ref) {

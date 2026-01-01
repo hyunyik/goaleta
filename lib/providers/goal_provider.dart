@@ -124,6 +124,17 @@ class GoalNotifier extends StateNotifier<AsyncValue<List<Goal>>> {
     }
   }
 
+  Future<void> updateGoals(List<Goal> goals) async {
+    try {
+      for (var goal in goals) {
+        await LocalStorage.saveGoal(goal);
+      }
+      await _loadGoals();
+    } catch (e) {
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
   Future<void> deleteGoal(String goalId) async {
     try {
       await LocalStorage.deleteGoal(goalId);
