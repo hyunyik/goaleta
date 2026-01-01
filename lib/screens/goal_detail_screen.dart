@@ -6,6 +6,7 @@ import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/utils/eta_calculator.dart';
 import 'package:goaleta/widgets/add_log_sheet.dart';
+import 'package:goaleta/widgets/running_cat.dart';
 
 class GoalDetailScreen extends ConsumerWidget {
   final Goal goal;
@@ -164,32 +165,39 @@ class GoalDetailScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                        // Progress bar with percentage
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: percentage / 100,
-                                  minHeight: 12,
-                                  backgroundColor: Colors.grey[200],
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    goal.category.getColor(context),
+                        // Progress bar with running cat
+                        SizedBox(
+                          height: 32,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.bottomCenter,
+                            children: [
+                              // Progress bar at bottom
+                              Align(
+                                alignment: Alignment.bottomCenter,
+                                child: SizedBox(
+                                  height: 12,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: percentage / 100,
+                                      minHeight: 12,
+                                      backgroundColor: Colors.grey[200],
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        goal.category.getColor(context),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              '${percentage.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: goal.category.getColor(context),
+                              // Running cat
+                              _buildRunningCat(
+                                context,
+                                percentage,
+                                dailyAverage ?? 0.0,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         // Start date and ETA
@@ -533,6 +541,32 @@ class GoalDetailScreen extends ConsumerWidget {
         ],
       ),
       child: child,
+    );
+  }
+
+  Widget _buildRunningCat(
+    BuildContext context,
+    double percentage,
+    double dailyAverage,
+  ) {
+    // Calculate position based on percentage (with padding for cat size)
+    final progress = (percentage / 100).clamp(0.0, 1.0);
+    
+    return Align(
+      alignment: Alignment(
+        // Map progress from 0-1 to alignment from -1 to 1
+        // Offset slightly to account for cat width
+        (progress * 2 - 1).clamp(-1.0, 0.9),
+        0.0,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: RunningCat(
+          progress: progress,
+          speed: dailyAverage,
+          color: goal.category.getColor(context),
+        ),
+      ),
     );
   }
 
