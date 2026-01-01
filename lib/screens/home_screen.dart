@@ -4,6 +4,7 @@ import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/widgets/goal_card.dart';
 import 'package:goaleta/widgets/add_edit_goal_sheet.dart';
 import 'package:goaleta/models/goal.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
 
 // Provider for selected category filter
@@ -45,21 +46,45 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              _getGreetingMessage(),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Transform.scale(
+                  scale: 1.3,
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             ),
-            Text(
-              _getRandomSubtitle(),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getGreetingMessage(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Text(
+                    _getRandomSubtitle(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

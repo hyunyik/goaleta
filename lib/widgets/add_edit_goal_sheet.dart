@@ -24,6 +24,25 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   late DateTime selectedDate;
   late bool excludeWeekends;
   late GoalCategory selectedCategory;
+  String? selectedUnit; // null means custom input
+
+  // Unit suggestions based on category
+  List<String> get suggestedUnits {
+    switch (selectedCategory) {
+      case GoalCategory.reading:
+        return ['페이지', '권', '챕터'];
+      case GoalCategory.study:
+        return ['시간', '분', '문제', '강의'];
+      case GoalCategory.fitness:
+        return ['회', '분', 'km', '세트'];
+      case GoalCategory.writing:
+        return ['단어', '페이지', '글'];
+      case GoalCategory.practice:
+        return ['시간', '분', '회'];
+      case GoalCategory.custom:
+        return ['개', '회', '시간'];
+    }
+  }
 
   @override
   void initState() {
@@ -39,6 +58,16 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     selectedDate = widget.existingGoal?.startDate ?? DateTime.now();
     excludeWeekends = widget.existingGoal?.excludeWeekends ?? false;
     selectedCategory = widget.existingGoal?.category ?? GoalCategory.custom;
+    
+    // Initialize selectedUnit based on existing goal
+    if (widget.existingGoal?.unit != null) {
+      final unit = widget.existingGoal!.unit;
+      if (suggestedUnits.contains(unit)) {
+        selectedUnit = unit;
+      } else {
+        selectedUnit = null; // Will show as custom
+      }
+    }
   }
 
   @override
@@ -51,8 +80,11 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   }
 
   void _handleSave() {
+    // Get unit from either selected chip or custom input
+    final unit = selectedUnit ?? unitController.text.trim();
+    
     if (titleController.text.isEmpty ||
-        unitController.text.isEmpty ||
+        unit.isEmpty ||
         totalAmountController.text.isEmpty) {
       _showErrorSnackBar('모든 필드를 입력해주세요');
       return;
@@ -76,7 +108,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       totalAmount: 0,
     )).copyWith(
       title: titleController.text.trim(),
-      unit: unitController.text.trim(),
+      unit: unit,
       totalAmount: totalAmount,
       startingAmount: startingAmount,
       startDate: selectedDate,
@@ -96,6 +128,47 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
+  }
+
+  Future<void> _showCustomUnitDialog() async {
+    final controller = TextEditingController(text: unitController.text);
+    
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('사용자 정의 단위'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '단위를 입력하세요',
+            hintText: '예: 페이지, 분, 회',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(context, controller.text.trim());
+              }
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        selectedUnit = null; // Mark as custom
+        unitController.text = result;
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -207,26 +280,66 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             ),
             const SizedBox(height: 16),
 
-            // 단위와 총량을 같은 줄에 배치
+            // 단위 선택 (Chips)
+            Text(
+              '단위',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...suggestedUnits.map((unit) {
+                  final isSelected = selectedUnit == unit;
+                  return ChoiceChip(
+                    label: Text(unit),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        selectedUnit = selected ? unit : null;
+                      });
+                    },
+                  );
+                }),
+                // "기타" chip for custom input
+                ChoiceChip(
+                  label: const Text('기타'),
+                  selected: selectedUnit == null && unitController.text.isNotEmpty,
+                  onSelected: (selected) {
+                    if (selected) {
+                      _showCustomUnitDialog();
+                    }
+                  },
+                ),
+              ],
+            ),
+            if (selectedUnit == null && unitController.text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '사용자 정의: ${unitController.text}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _showCustomUnitDialog,
+                      child: const Text('수정'),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            // 총량과 시작값을 같은 줄에 배치
             Row(
               children: [
                 Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: unitController,
-                    decoration: InputDecoration(
-                      labelText: '단위',
-                      hintText: '페이지, 분 등',
-                      prefixIcon: const Icon(Icons.straighten),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 3,
                   child: TextField(
                     controller: totalAmountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -240,23 +353,22 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
                     ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // 시작값 (누적값이 이미 있는 경우)
-            TextField(
-              controller: startingAmountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: '시작값 (선택)',
-                hintText: '예: 100 (이미 100페이지를 읽은 상태)',
-                prefixIcon: const Icon(Icons.start),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: startingAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: '시작값',
+                      hintText: '기본: 0',
+                      prefixIcon: const Icon(Icons.start),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-                helperText: '목표 시작 시 이미 달성한 누적량 (기본값: 0)',
-              ),
+              ],
             ),
             const SizedBox(height: 20),
 

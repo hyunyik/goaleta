@@ -32,6 +32,9 @@ dependencies:
   
   # Animations (Material Design transitions)
   animations: ^2.0.11
+  
+  # SVG Support
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +42,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   build_runner: ^2.4.0
   hive_generator: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -46,3 +50,12 @@ flutter:
   # Assets (optional, customize as needed)
   assets:
     - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_foreground_inset: 56
