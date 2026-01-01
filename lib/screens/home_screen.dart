@@ -4,7 +4,7 @@ import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/widgets/goal_card.dart';
 import 'package:goaleta/widgets/add_edit_goal_sheet.dart';
 import 'package:goaleta/models/goal.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:goaleta/screens/archives_screen.dart';
 import 'dart:math';
 
 // Provider for selected category filter
@@ -102,6 +102,21 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // Archive button
+            IconButton(
+              icon: Icon(
+                Icons.archive_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ArchivesScreen(),
+                  ),
+                );
+              },
+              tooltip: '보관함',
+            ),
           ],
         ),
         elevation: 0,
@@ -134,7 +149,10 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         data: (goals) {
-          if (goals.isEmpty) {
+          // Filter out archived goals
+          final activeGoals = goals.where((g) => !g.isArchived).toList();
+          
+          if (activeGoals.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -161,8 +179,8 @@ class HomeScreen extends ConsumerWidget {
 
           // Filter goals by selected category
           var filteredGoals = selectedCategory == null
-              ? goals
-              : goals.where((g) => g.category == selectedCategory).toList();
+              ? activeGoals
+              : activeGoals.where((g) => g.category == selectedCategory).toList();
 
           // Apply sorting
           final sortOption = ref.watch(selectedSortProvider);
@@ -171,7 +189,7 @@ class HomeScreen extends ConsumerWidget {
           return Column(
             children: [
               // Category filter chips
-              _buildCategoryChips(context, ref, goals),
+              _buildCategoryChips(context, ref, activeGoals),
               // Sort selector
               _buildSortSelector(context, ref),
               // Goal list

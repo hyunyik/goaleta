@@ -143,6 +143,40 @@ class GoalNotifier extends StateNotifier<AsyncValue<List<Goal>>> {
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
+
+  Future<void> archiveGoal(String goalId) async {
+    try {
+      final goal = await LocalStorage.getGoal(goalId);
+      if (goal != null) {
+        final archivedGoal = goal.copyWith(
+          isArchived: true,
+          archivedAt: DateTime.now(),
+          isCompleted: true,
+          completedAt: DateTime.now(),
+        );
+        await LocalStorage.saveGoal(archivedGoal);
+        await _loadGoals();
+      }
+    } catch (e) {
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> unarchiveGoal(String goalId) async {
+    try {
+      final goal = await LocalStorage.getGoal(goalId);
+      if (goal != null) {
+        final unarchivedGoal = goal.copyWith(
+          isArchived: false,
+          archivedAt: null,
+        );
+        await LocalStorage.saveGoal(unarchivedGoal);
+        await _loadGoals();
+      }
+    } catch (e) {
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
 }
 
 /// 특정 Goal 상세 정보 제공자

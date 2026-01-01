@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/widgets/custom_date_picker.dart';
+import 'package:goaleta/widgets/congratulations_dialog.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:goaleta/providers/goal_provider.dart';
 import 'package:intl/intl.dart';
 
-class AddLogBottomSheet extends StatefulWidget {
+class AddLogBottomSheet extends ConsumerStatefulWidget {
   final String goalId;
   final String unit;
   final LogEntry? existingLog;
@@ -13,6 +16,7 @@ class AddLogBottomSheet extends StatefulWidget {
   final double startingAmount;
   final DateTime? latestLogDate;
   final List<DateTime> existingLogDates;
+  final Goal goal;
 
   const AddLogBottomSheet({
     required this.goalId,
@@ -24,14 +28,15 @@ class AddLogBottomSheet extends StatefulWidget {
     this.startingAmount = 0,
     this.latestLogDate,
     this.existingLogDates = const [],
+    required this.goal,
     Key? key,
   }) : super(key: key);
 
   @override
-  State<AddLogBottomSheet> createState() => _AddLogBottomSheetState();
+  ConsumerState<AddLogBottomSheet> createState() => _AddLogBottomSheetState();
 }
 
-class _AddLogBottomSheetState extends State<AddLogBottomSheet> {
+class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
   late TextEditingController amountController;
   late TextEditingController noteController;
   late DateTime logDate;
@@ -92,8 +97,64 @@ class _AddLogBottomSheetState extends State<AddLogBottomSheet> {
       note: noteController.text.isEmpty ? null : noteController.text,
     );
 
-    Navigator.of(context).pop();
+    // Check if goal will be completed with this log
+    final newCumulativeTotal = (widget.previousCumulativeTotal ?? 0) + 
+        (widget.existingLog == null ? finalAmount : finalAmount - widget.existingLog!.amount);
+    final effectiveTotal = widget.goal.totalAmount - widget.goal.startingAmount;
+    
+    // Debug prints
+    print('=== Goal Completion Check ===');
+    print('Previous cumulative: ${widget.previousCumulativeTotal ?? 0}');
+    print('New amount: $finalAmount');
+    print('Existing log amount: ${widget.existingLog?.amount ?? 0}');
+    print('New cumulative total: $newCumulativeTotal');
+    print('Effective total: $effectiveTotal');
+    print('Is completed: ${widget.goal.isCompleted}');
+    print('Is archived: ${widget.goal.isArchived}');
+    print('Will complete: ${newCumulativeTotal >= effectiveTotal && !widget.goal.isCompleted && !widget.goal.isArchived}');
+    
+    final willComplete = newCumulativeTotal >= effectiveTotal && !widget.goal.isCompleted && !widget.goal.isArchived;
+    
+    // Save the current navigator and ref before popping
+    final navigator = Navigator.of(context);
+    final goalNotifier = ref.read(goalsProvider.notifier);
+    
+    navigator.pop();
     widget.onSave(log);
+    
+    if (willComplete) {
+      print('Showing congratulations dialog...');
+      // Show congratulations dialog after navigation is complete
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (navigator.context.mounted) {
+            showDialog(
+              context: navigator.context,
+              barrierDismissible: false,
+              builder: (dialogContext) => CongratulationsDialog(
+                goal: widget.goal,
+                onArchive: () {
+                  goalNotifier.archiveGoal(widget.goal.id);
+                  if (navigator.context.mounted) {
+                    // Navigate back to home screen
+                    Navigator.of(navigator.context).pop();
+                    ScaffoldMessenger.of(navigator.context).showSnackBar(
+                      SnackBar(
+                        content: const Text('목표가 보관함으로 이동되었습니다'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            );
+          }
+        });
+      });
+    }
   }
 
   void _showErrorSnackBar(String message) {

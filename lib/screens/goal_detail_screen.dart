@@ -930,6 +930,7 @@ class GoalDetailScreen extends ConsumerWidget {
         startingAmount: goal.startingAmount,
         latestLogDate: latestLogDate,
         existingLogDates: existingLogDates,
+        goal: goal,
         onSave: (log) async {
           // Check if a log already exists for this date
           final logsAsyncValue = ref.read(logsProvider(goal.id));
@@ -1035,6 +1036,7 @@ class GoalDetailScreen extends ConsumerWidget {
         goalStartDate: goal.startDate,
         startingAmount: goal.startingAmount,
         existingLogDates: existingLogDates,
+        goal: goal,
         onSave: (updatedLog) {
           ref.read(logNotifierProvider(goal.id).notifier).updateLog(updatedLog);
           ref.invalidate(logsProvider(goal.id));

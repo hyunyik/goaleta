@@ -74,6 +74,8 @@ class Goal {
   final bool isCompleted;
   final DateTime? completedAt;
   final GoalCategory category;
+  final bool isArchived;
+  final DateTime? archivedAt;
 
   Goal({
     String? id,
@@ -87,6 +89,8 @@ class Goal {
     this.isCompleted = false,
     this.completedAt,
     this.category = GoalCategory.custom,
+    this.isArchived = false,
+    this.archivedAt,
   })  : id = id ?? const Uuid().v4(),
         startDate = startDate ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
@@ -115,6 +119,8 @@ class Goal {
     bool? isCompleted,
     DateTime? completedAt,
     GoalCategory? category,
+    bool? isArchived,
+    DateTime? archivedAt,
   }) {
     return Goal(
       id: id ?? this.id,
@@ -128,6 +134,8 @@ class Goal {
       isCompleted: isCompleted ?? this.isCompleted,
       completedAt: completedAt ?? this.completedAt,
       category: category ?? this.category,
+      isArchived: isArchived ?? this.isArchived,
+      archivedAt: archivedAt ?? this.archivedAt,
     );
   }
 
@@ -145,6 +153,8 @@ class Goal {
       'isCompleted': isCompleted,
       'completedAt': completedAt?.toIso8601String(),
       'category': category.name,
+      'isArchived': isArchived,
+      'archivedAt': archivedAt?.toIso8601String(),
     };
   }
 
@@ -168,6 +178,10 @@ class Goal {
         (e) => e.name == json['category'],
         orElse: () => GoalCategory.custom,
       ),
+      isArchived: json['isArchived'] ?? false,
+      archivedAt: json['archivedAt'] != null
+          ? DateTime.parse(json['archivedAt'])
+          : null,
     );
   }
 }
