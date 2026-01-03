@@ -10,10 +10,12 @@ import 'package:animations/animations.dart';
 class GoalCard extends ConsumerWidget {
   final Goal goal;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const GoalCard({
     required this.goal,
     required this.onDelete,
+    required this.onEdit,
     Key? key,
   }) : super(key: key);
 
@@ -162,7 +164,7 @@ class GoalCard extends ConsumerWidget {
                       child: Text(
                         goal.title,
                         style: const TextStyle(
-                          fontSize: 36,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           height: 1.1,
@@ -183,14 +185,32 @@ class GoalCard extends ConsumerWidget {
                       icon: const Icon(Icons.more_vert,
                           size: 24, color: Colors.white),
                       onSelected: (value) {
-                        if (value == 'delete') {
+                        if (value == 'edit') {
+                          onEdit();
+                        } else if (value == 'delete') {
                           _showDeleteConfirm(context);
                         }
                       },
                       itemBuilder: (BuildContext context) => [
                         const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('수정'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
                           value: 'delete',
-                          child: Text('삭제'),
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20),
+                              SizedBox(width: 8),
+                              Text('삭제'),
+                            ],
+                          ),
                         ),
                       ],
                     ),

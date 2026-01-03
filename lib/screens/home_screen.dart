@@ -260,9 +260,9 @@ class HomeScreen extends ConsumerWidget {
             ),
             // Right side: Cat logo (bigger, aligned with goal cards)
             Container(
-              width: 80,
-              height: 80,
-              margin: const EdgeInsets.only(right: 16),
+              width: 70,
+              height: 70,
+              margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -364,6 +364,7 @@ class HomeScreen extends ConsumerWidget {
                     return GoalCard(
                       key: ValueKey(goal.id),
                       goal: goal,
+                      onEdit: () => _showEditGoalSheet(context, ref, goal),
                       onDelete: () {
                         ref.read(goalsProvider.notifier).deleteGoal(goal.id);
                         if (context.mounted) {
@@ -583,6 +584,31 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditGoalSheet(BuildContext context, WidgetRef ref, Goal goal) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (context) => AddEditGoalBottomSheet(
+        existingGoal: goal,
+        onSave: (updatedGoal) {
+          ref.read(goalsProvider.notifier).updateGoal(updatedGoal);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('목표가 수정되었습니다'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

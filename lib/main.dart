@@ -3,12 +3,30 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/screens/home_screen.dart';
 import 'package:goaleta/providers/goal_provider.dart';
+import 'package:goaleta/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
   await LocalStorage.init();
+  
+  // Initialize notification service
+  await NotificationService().initialize();
+  
+  // Restore alarm if it was enabled
+  final alarmEnabled = LocalStorage.getAlarmEnabled();
+  final alarmTime = LocalStorage.getAlarmTime();
+  if (alarmEnabled && alarmTime != null) {
+    try {
+      await NotificationService().scheduleDailyNotification(
+        time: TimeOfDay(hour: alarmTime.$1, minute: alarmTime.$2),
+      );
+    } catch (e) {
+      debugPrint('Failed to restore alarm: $e');
+    }
+  }
+  
   runApp(const ProviderScope(child: GoaletaApp()));
 }
 

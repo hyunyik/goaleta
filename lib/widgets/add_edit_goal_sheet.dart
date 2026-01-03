@@ -26,6 +26,12 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   late GoalCategory selectedCategory;
   String? selectedUnit; // null means custom input
   DateTime? selectedDeadline;
+  
+  // Validation error states
+  bool _titleError = false;
+  bool _unitError = false;
+  bool _totalAmountError = false;
+  String? _totalAmountErrorMessage;
 
   // Unit suggestions based on category
   List<String> get suggestedUnits {
@@ -82,22 +88,54 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   }
 
   void _handleSave() {
+    // Reset error states
+    setState(() {
+      _titleError = false;
+      _unitError = false;
+      _totalAmountError = false;
+      _totalAmountErrorMessage = null;
+    });
+    
     // Get unit from either selected chip or custom input
     final unit = selectedUnit ?? unitController.text.trim();
+    bool hasError = false;
     
-    if (titleController.text.isEmpty ||
-        unit.isEmpty ||
-        totalAmountController.text.isEmpty) {
-      _showErrorSnackBar('모든 필드를 입력해주세요');
+    // Validate title
+    if (titleController.text.isEmpty) {
+      setState(() => _titleError = true);
+      hasError = true;
+    }
+    
+    // Validate unit
+    if (unit.isEmpty) {
+      setState(() => _unitError = true);
+      hasError = true;
+    }
+    
+    // Validate total amount
+    if (totalAmountController.text.isEmpty) {
+      setState(() {
+        _totalAmountError = true;
+        _totalAmountErrorMessage = '총량을 입력해주세요';
+      });
+      hasError = true;
+    } else {
+      final totalAmount = double.tryParse(totalAmountController.text);
+      if (totalAmount == null || totalAmount <= 0) {
+        setState(() {
+          _totalAmountError = true;
+          _totalAmountErrorMessage = '0보다 큰 값을 입력해주세요';
+        });
+        hasError = true;
+      }
+    }
+    
+    if (hasError) {
+      _showErrorSnackBar('필수 항목을 모두 입력해주세요');
       return;
     }
 
-    final totalAmount = double.tryParse(totalAmountController.text);
-    if (totalAmount == null || totalAmount <= 0) {
-      _showErrorSnackBar('유효한 총량을 입력해주세요');
-      return;
-    }
-
+    final totalAmount = double.tryParse(totalAmountController.text)!;
     final startingAmount = double.tryParse(startingAmountController.text) ?? 0;
     if (startingAmount < 0) {
       _showErrorSnackBar('시작값은 0 이상이어야 합니다');
@@ -170,6 +208,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       setState(() {
         selectedUnit = null; // Mark as custom
         unitController.text = result;
+        _unitError = false;
       });
     }
   }
@@ -218,14 +257,15 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   Widget build(BuildContext context) {
     final dateFormatter = DateFormat('yyyy.MM.dd');
 
-    return SingleChildScrollView(
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Container(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,13 +290,27 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             TextField(
               controller: titleController,
               decoration: InputDecoration(
-                labelText: '목표 제목',
+                labelText: '목표 제목 *',
                 hintText: '예: 책 읽기',
                 prefixIcon: const Icon(Icons.book),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                errorText: _titleError ? '목표 제목을 입력해주세요' : null,
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                ),
               ),
+              onChanged: (value) {
+                if (_titleError && value.isNotEmpty) {
+                  setState(() => _titleError = false);
+                }
+              },
             ),
             const SizedBox(height: 16),
 
@@ -304,38 +358,61 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             const SizedBox(height: 16),
 
             // 단위 선택 (Chips)
-            Text(
-              '단위',
-              style: Theme.of(context).textTheme.titleSmall,
+            Row(
+              children: [
+                Text(
+                  '단위 *',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                if (_unitError)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      '단위를 선택해주세요',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ...suggestedUnits.map((unit) {
-                  final isSelected = selectedUnit == unit;
-                  return ChoiceChip(
-                    label: Text(unit),
-                    selected: isSelected,
+            Container(
+              decoration: _unitError ? BoxDecoration(
+                border: Border.all(color: Theme.of(context).colorScheme.error, width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ) : null,
+              padding: _unitError ? const EdgeInsets.all(8) : null,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...suggestedUnits.map((unit) {
+                    final isSelected = selectedUnit == unit;
+                    return ChoiceChip(
+                      label: Text(unit),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          selectedUnit = selected ? unit : null;
+                          if (selected) _unitError = false;
+                        });
+                      },
+                    );
+                  }),
+                  // "기타" chip for custom input
+                  ChoiceChip(
+                    label: const Text('기타'),
+                    selected: selectedUnit == null && unitController.text.isNotEmpty,
                     onSelected: (selected) {
-                      setState(() {
-                        selectedUnit = selected ? unit : null;
-                      });
+                      if (selected) {
+                        _showCustomUnitDialog();
+                      }
                     },
-                  );
-                }),
-                // "기타" chip for custom input
-                ChoiceChip(
-                  label: const Text('기타'),
-                  selected: selectedUnit == null && unitController.text.isNotEmpty,
-                  onSelected: (selected) {
-                    if (selected) {
-                      _showCustomUnitDialog();
-                    }
-                  },
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
             if (selectedUnit == null && unitController.text.isNotEmpty)
               Padding(
@@ -367,13 +444,33 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
                     controller: totalAmountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText: '총량',
+                      labelText: '총량 *',
                       hintText: '예: 500',
                       prefixIcon: const Icon(Icons.track_changes),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      errorText: _totalAmountError ? _totalAmountErrorMessage : null,
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                      ),
                     ),
+                    onChanged: (value) {
+                      if (_totalAmountError && value.isNotEmpty) {
+                        final amount = double.tryParse(value);
+                        if (amount != null && amount > 0) {
+                          setState(() {
+                            _totalAmountError = false;
+                            _totalAmountErrorMessage = null;
+                          });
+                        }
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -487,6 +584,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

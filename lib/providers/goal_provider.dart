@@ -6,15 +6,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 class LocalStorage {
   static const String goalsBoxName = 'goals';
   static const String logsBoxName = 'logs';
+  static const String settingsBoxName = 'settings';
 
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox<Map>(goalsBoxName);
     await Hive.openBox<Map>(logsBoxName);
+    await Hive.openBox(settingsBoxName);
   }
 
   static Box<Map> get _goalsBox => Hive.box<Map>(goalsBoxName);
   static Box<Map> get _logsBox => Hive.box<Map>(logsBoxName);
+  static Box get _settingsBox => Hive.box(settingsBoxName);
 
   static Future<void> saveGoal(Goal goal) async {
     await _goalsBox.put(goal.id, goal.toJson());
@@ -82,6 +85,29 @@ class LocalStorage {
       }
     }
     return logs;
+  }
+  
+  // Alarm settings
+  static Future<void> saveAlarmEnabled(bool enabled) async {
+    await _settingsBox.put('alarmEnabled', enabled);
+  }
+  
+  static bool getAlarmEnabled() {
+    return _settingsBox.get('alarmEnabled', defaultValue: false) as bool;
+  }
+  
+  static Future<void> saveAlarmTime(int hour, int minute) async {
+    await _settingsBox.put('alarmHour', hour);
+    await _settingsBox.put('alarmMinute', minute);
+  }
+  
+  static (int, int)? getAlarmTime() {
+    final hour = _settingsBox.get('alarmHour');
+    final minute = _settingsBox.get('alarmMinute');
+    if (hour != null && minute != null) {
+      return (hour as int, minute as int);
+    }
+    return null;
   }
 }
 

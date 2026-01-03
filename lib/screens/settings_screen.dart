@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/providers/goal_provider.dart';
+import 'package:goaleta/services/notification_service.dart';
 
-// Provider for alarm time (null means not set)
-final alarmTimeProvider = StateProvider<TimeOfDay?>((ref) => null);
+// Provider for alarm time (loaded from storage)
+final alarmTimeProvider = StateProvider<TimeOfDay?>((ref) {
+  final savedTime = LocalStorage.getAlarmTime();
+  if (savedTime != null) {
+    return TimeOfDay(hour: savedTime.$1, minute: savedTime.$2);
+  }
+  return null;
+});
+
+// Provider for alarm enabled (loaded from storage)
+final alarmEnabledProvider = StateProvider<bool>((ref) {
+  return LocalStorage.getAlarmEnabled();
+});
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -84,14 +96,49 @@ class SettingsScreen extends ConsumerWidget {
       trailing: Switch(
         value: alarmEnabled,
         onChanged: alarmTime != null
-            ? (value) {
+            ? (value) async {
                 ref.read(alarmEnabledProvider.notifier).state = value;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(value ? '알림이 켜졌습니다' : '알림이 꺼졌습니다'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
+                await LocalStorage.saveAlarmEnabled(value);
+                
+                if (value) {
+                  // Enable notifications
+                  try {
+                    await NotificationService().scheduleDailyNotification(
+                      time: alarmTime,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('알림이 켜졌습니다'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('알림 설정 실패: $e'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                    // Revert the state
+                    ref.read(alarmEnabledProvider.notifier).state = false;
+                    await LocalStorage.saveAlarmEnabled(false);
+                  }
+                } else {
+                  // Disable notifications
+                  await NotificationService().cancelAllNotifications();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('알림이 꺼졌습니다'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                }
               }
             : null,
       ),
@@ -118,18 +165,46 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (picked != null) {
+      // Save the time
       ref.read(alarmTimeProvider.notifier).state = picked;
-      if (!ref.read(alarmEnabledProvider)) {
+      await LocalStorage.saveAlarmTime(picked.hour, picked.minute);
+      
+      // Enable alarm if it wasn't already
+      final wasEnabled = ref.read(alarmEnabledProvider);
+      if (!wasEnabled) {
         ref.read(alarmEnabledProvider.notifier).state = true;
+        await LocalStorage.saveAlarmEnabled(true);
       }
       
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('알림 시간이 ${picked.format(context)}로 설정되었습니다'),
-            duration: const Duration(seconds: 2),
-          ),
+      // Schedule the notification
+      try {
+        await NotificationService().scheduleDailyNotification(
+          time: picked,
         );
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('알림 시간이 ${picked.format(context)}로 설정되었습니다'),
+              duration: const Duration(seconds: 2),
+              action: SnackBarAction(
+                label: '테스트',
+                onPressed: () async {
+                  await NotificationService().showTestNotification();
+                },
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('알림 설정 실패: $e'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     }
   }
@@ -249,5 +324,3 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// Provider for alarm notification status (moved from home_screen.dart)
-final alarmEnabledProvider = StateProvider<bool>((ref) => false);

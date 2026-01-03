@@ -137,9 +137,10 @@ class GoalDetailScreen extends ConsumerWidget {
                         Text(
                           goal.title,
                           style: const TextStyle(
-                            fontSize: 44,
+                            fontSize: 36,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
+                            height: 1.5,
                             shadows: [
                               Shadow(
                                 offset: Offset(0, 2),
@@ -148,7 +149,7 @@ class GoalDetailScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          maxLines: 2,
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 32),
@@ -445,7 +446,7 @@ class GoalDetailScreen extends ConsumerWidget {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '페이스 마커',
+                                '페이스 메이커',
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ],

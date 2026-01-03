@@ -41,6 +41,10 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
   late TextEditingController noteController;
   late DateTime logDate;
   bool isAccumulativeMode = false; // true: 누적, false: 일일
+  
+  // Validation error states
+  bool _amountError = false;
+  String? _amountErrorMessage;
 
   @override
   void initState() {
@@ -61,16 +65,38 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
   }
 
   void _handleSave() {
+    // Reset error states
+    setState(() {
+      _amountError = false;
+      _amountErrorMessage = null;
+    });
+    
+    bool hasError = false;
+    
+    // Validate amount
     if (amountController.text.isEmpty) {
-      _showErrorSnackBar('값을 입력해주세요');
+      setState(() {
+        _amountError = true;
+        _amountErrorMessage = '값을 입력해주세요';
+      });
+      hasError = true;
+    } else {
+      final inputValue = double.tryParse(amountController.text);
+      if (inputValue == null || inputValue < 0) {
+        setState(() {
+          _amountError = true;
+          _amountErrorMessage = '0 이상의 값을 입력해주세요';
+        });
+        hasError = true;
+      }
+    }
+    
+    if (hasError) {
+      _showErrorSnackBar('필수 항목을 모두 입력해주세요');
       return;
     }
-
-    final inputValue = double.tryParse(amountController.text);
-    if (inputValue == null || inputValue < 0) {
-      _showErrorSnackBar('유효한 값을 입력해주세요');
-      return;
-    }
+    
+    final inputValue = double.tryParse(amountController.text)!;
 
     double finalAmount;
     if (isAccumulativeMode) {
@@ -227,14 +253,15 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
   Widget build(BuildContext context) {
     final dateFormatter = DateFormat('yyyy.MM.dd');
 
-    return SingleChildScrollView(
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Container(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,7 +423,7 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: isAccumulativeMode ? '누적값' : '값',
+                labelText: isAccumulativeMode ? '누적값 *' : '값 *',
                 hintText: isAccumulativeMode
                     ? (widget.previousCumulativeTotal != null
                         ? '예: ${(widget.startingAmount + widget.previousCumulativeTotal! + 50).toStringAsFixed(0)} (현재: ${(widget.startingAmount + widget.previousCumulativeTotal!).toStringAsFixed(0)})'
@@ -411,9 +438,28 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                helperText:
-                    isAccumulativeMode ? '전체 누적값을 입력하세요' : '오늘 달성한 양을 입력하세요',
+                errorText: _amountError ? _amountErrorMessage : null,
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                ),
+                helperText: _amountError ? null : (isAccumulativeMode ? '전체 누적값을 입력하세요' : '오늘 달성한 양을 입력하세요'),
               ),
+              onChanged: (value) {
+                if (_amountError && value.isNotEmpty) {
+                  final amount = double.tryParse(value);
+                  if (amount != null && amount >= 0) {
+                    setState(() {
+                      _amountError = false;
+                      _amountErrorMessage = null;
+                    });
+                  }
+                }
+              },
             ),
             const SizedBox(height: 20),
 
@@ -472,6 +518,7 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
