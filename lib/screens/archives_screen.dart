@@ -494,14 +494,14 @@ class ArchivesScreen extends ConsumerWidget {
               
               const SizedBox(height: 8),
               
-              // Unarchive button
+              // Delete button
               TextButton.icon(
                 onPressed: () {
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('보관 취소'),
-                      content: const Text('이 목표를 다시 활성 목표로 되돌리시겠습니까?'),
+                      title: const Text('업적 삭제'),
+                      content: const Text('이 업적을 영구적으로 삭제하시겠습니까?\n삭제된 목표는 복구할 수 없습니다.'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -509,11 +509,11 @@ class ArchivesScreen extends ConsumerWidget {
                         ),
                         TextButton(
                           onPressed: () {
-                            ref.read(goalsProvider.notifier).unarchiveGoal(goal.id);
+                            ref.read(goalsProvider.notifier).deleteGoal(goal.id);
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text('목표가 활성 목표로 복원되었습니다'),
+                                content: const Text('목표가 삭제되었습니다'),
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -521,16 +521,19 @@ class ArchivesScreen extends ConsumerWidget {
                               ),
                             );
                           },
-                          child: const Text('복원'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          child: const Text('삭제'),
                         ),
                       ],
                     ),
                   );
                 },
-                icon: const Icon(Icons.unarchive, size: 18),
-                label: const Text('보관 취소'),
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('업적 삭제'),
                 style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Colors.red,
                 ),
               ),
             ],

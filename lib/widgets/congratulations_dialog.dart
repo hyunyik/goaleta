@@ -6,10 +6,14 @@ import 'package:intl/intl.dart';
 class CongratulationsDialog extends StatelessWidget {
   final Goal goal;
   final VoidCallback onArchive;
+  final Future<void> Function(LogEntry) onCorrectRecord;
+  final LogEntry lastLog;
 
   const CongratulationsDialog({
     required this.goal,
     required this.onArchive,
+    required this.onCorrectRecord,
+    required this.lastLog,
     Key? key,
   }) : super(key: key);
 
@@ -157,6 +161,14 @@ class CongratulationsDialog extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Text(
+              '(기록이 잘못되었다면 아래 버튼으로 삭제 후 다시 입력하세요)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.black54,
+                  ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             
             // Buttons
@@ -166,8 +178,13 @@ class CongratulationsDialog extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () {
                       Navigator.of(context).pop(false);
+                      onCorrectRecord(lastLog);
                     },
-                    child: const Text('나중에'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    child: const Text('최종기록 삭제'),
                   ),
                 ),
                 const SizedBox(width: 12),

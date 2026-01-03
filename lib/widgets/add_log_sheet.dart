@@ -115,9 +115,10 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
     
     final willComplete = newCumulativeTotal >= effectiveTotal && !widget.goal.isCompleted && !widget.goal.isArchived;
     
-    // Save the current navigator and ref before popping
+    // Save the current navigator and notifiers before popping
     final navigator = Navigator.of(context);
     final goalNotifier = ref.read(goalsProvider.notifier);
+    final logNotifier = ref.read(logNotifierProvider(widget.goal.id).notifier);
     
     navigator.pop();
     widget.onSave(log);
@@ -133,6 +134,7 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
               barrierDismissible: false,
               builder: (dialogContext) => CongratulationsDialog(
                 goal: widget.goal,
+                lastLog: log,
                 onArchive: () {
                   goalNotifier.archiveGoal(widget.goal.id);
                   if (navigator.context.mounted) {
@@ -142,6 +144,29 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
                       SnackBar(
                         content: const Text('목표가 보관함으로 이동되었습니다'),
                         behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                onCorrectRecord: (logToEdit) async {
+                  // Delete the last log entry
+                  await logNotifier.deleteLog(logToEdit.id);
+                  
+                  // Refresh the providers by getting the container from the current context
+                  if (navigator.context.mounted) {
+                    final container = ProviderScope.containerOf(navigator.context);
+                    container.invalidate(logsProvider(widget.goal.id));
+                    container.invalidate(completedAmountProvider(widget.goal.id));
+                    
+                    // Show snackbar with clear message
+                    ScaffoldMessenger.of(navigator.context).showSnackBar(
+                      SnackBar(
+                        content: const Text('최종 기록이 삭제되었습니다. 올바른 기록을 다시 입력해주세요'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
