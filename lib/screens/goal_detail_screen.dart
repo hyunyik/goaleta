@@ -248,6 +248,36 @@ class GoalDetailScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        // Deadline info (if set)
+                        if (goal.deadline != null && estimatedDate != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '마감: ${dateFormatter.format(goal.deadline!)} ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                '(${_getDeadlineDifference(estimatedDate, goal.deadline!)})',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _getDeadlineColor(estimatedDate, goal.deadline!),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -398,6 +428,40 @@ class GoalDetailScreen extends ConsumerWidget {
                   ),
 
                   const SizedBox(height: 24),
+
+                  // Pace Marker Section (if deadline is set)
+                  if (goal.deadline != null && estimatedDate != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.speed,
+                                size: 20,
+                                color: Colors.black.withOpacity(0.7),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '페이스 마커',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPaceMarkerCard(
+                            context,
+                            estimatedDate,
+                            goal.deadline!,
+                            remaining,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // 기록 리스트
                   Padding(
@@ -1049,6 +1113,162 @@ class GoalDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildPaceMarkerCard(
+    BuildContext context,
+    DateTime estimatedDate,
+    DateTime deadline,
+    double remaining,
+  ) {
+    final difference = estimatedDate.difference(deadline).inDays;
+    final daysUntilDeadline = deadline.difference(DateTime.now()).inDays;
+    final requiredDailyAmount = daysUntilDeadline > 0 
+        ? remaining / daysUntilDeadline 
+        : remaining;
+    
+    final dateFormatter = DateFormat('yyyy.MM.dd');
+    
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+    
+    if (difference > 0) {
+      statusColor = Colors.red;
+      statusText = '마감일보다 ${difference}일 늦어요';
+      statusIcon = Icons.warning_amber_rounded;
+    } else if (difference < 0) {
+      statusColor = Colors.green;
+      statusText = '마감일보다 ${-difference}일 빨라요';
+      statusIcon = Icons.check_circle_outline;
+    } else {
+      statusColor = Colors.orange;
+      statusText = '마감일과 동일해요';
+      statusIcon = Icons.info_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPaceInfoItem(
+                  context,
+                  '마감일',
+                  dateFormatter.format(deadline),
+                  Icons.event,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPaceInfoItem(
+                  context,
+                  '예상 완료일',
+                  dateFormatter.format(estimatedDate),
+                  Icons.flag,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.speed,
+                  color: goal.category.getColor(context),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '필요 일평균: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withOpacity(0.6),
+                  ),
+                ),
+                Text(
+                  '${requiredDailyAmount.toStringAsFixed(1)} ${goal.unit}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: goal.category.getColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaceInfoItem(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatItem(
       BuildContext context, IconData icon, String label, String value) {
     return Column(
@@ -1089,5 +1309,27 @@ class GoalDetailScreen extends ConsumerWidget {
     if (daysNeeded <= remainingDays * 1.5)
       return Colors.orange; // Slightly behind
     return Colors.red; // Far behind
+  }
+
+  String _getDeadlineDifference(DateTime eta, DateTime deadline) {
+    final difference = eta.difference(deadline).inDays;
+    if (difference > 0) {
+      return '+$difference일';
+    } else if (difference < 0) {
+      return '${difference}일';
+    } else {
+      return '동일';
+    }
+  }
+
+  Color _getDeadlineColor(DateTime eta, DateTime deadline) {
+    final difference = eta.difference(deadline).inDays;
+    if (difference > 0) {
+      return Colors.red; // Behind schedule
+    } else if (difference < 0) {
+      return Colors.green; // Ahead of schedule
+    } else {
+      return Colors.orange; // On schedule
+    }
   }
 }

@@ -6,6 +6,7 @@ import 'package:goaleta/widgets/add_edit_goal_sheet.dart';
 import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/screens/archives_screen.dart';
 import 'package:goaleta/screens/settings_screen.dart';
+import 'package:goaleta/utils/eta_calculator.dart';
 import 'dart:math';
 
 // Provider for selected category filter
@@ -16,7 +17,9 @@ enum SortOption {
   createdDesc('생성일 (최신순)', Icons.access_time),
   createdAsc('생성일 (오래된순)', Icons.history),
   progressDesc('진행률 (높은순)', Icons.trending_up),
-  progressAsc('진행률 (낮은순)', Icons.trending_down);
+  progressAsc('진행률 (낮은순)', Icons.trending_down),
+  deadlineAsc('마감일 (빠른순)', Icons.event),
+  overdueDesc('초과일 (많은순)', Icons.warning_amber);
 
   final String label;
   final IconData icon;
@@ -481,6 +484,56 @@ class HomeScreen extends ConsumerWidget {
         } else {
           sorted.sort((a, b) => (progressMap[a.id] ?? 0).compareTo(progressMap[b.id] ?? 0));
         }
+        break;
+      case SortOption.deadlineAsc:
+        // Sort by deadline (earliest first), goals without deadline at the end
+        sorted.sort((a, b) {
+          if (a.deadline == null && b.deadline == null) return 0;
+          if (a.deadline == null) return 1; // a goes to back
+          if (b.deadline == null) return -1; // b goes to back
+          return a.deadline!.compareTo(b.deadline!);
+        });
+        break;
+      case SortOption.overdueDesc:
+        // Sort by overdue days (most overdue first), goals without deadline at the end
+        // Calculate ETA for each goal to determine overdue days
+        final overdueMap = <String, int>{};
+        for (final goal in goals) {
+          if (goal.deadline == null) {
+            overdueMap[goal.id] = -999999; // Send to back
+          } else {
+            final logsAsync = ref.read(logsProvider(goal.id));
+            final completedAsync = ref.read(completedAmountProvider(goal.id));
+            
+            final logs = logsAsync.maybeWhen(
+              data: (l) => l,
+              orElse: () => [],
+            );
+            final completed = completedAsync.maybeWhen(
+              data: (amount) => amount,
+              orElse: () => 0.0,
+            );
+            
+            if (logs.isNotEmpty) {
+              final etaData = ETACalculator.calculateSimpleAverageETA(
+                completedAmount: completed,
+                totalAmount: goal.totalAmount,
+                startDate: goal.startDate,
+                logs: logs.cast<LogEntry>(),
+                excludeWeekends: goal.excludeWeekends,
+                startingAmount: goal.startingAmount,
+              );
+              final estimatedDate = etaData['estimatedDate'] as DateTime;
+              final overdueDays = estimatedDate.difference(goal.deadline!).inDays;
+              overdueMap[goal.id] = overdueDays;
+            } else {
+              // No logs yet, can't calculate overdue
+              overdueMap[goal.id] = -999998; // Send to back but before null deadlines
+            }
+          }
+        }
+        
+        sorted.sort((a, b) => (overdueMap[b.id] ?? 0).compareTo(overdueMap[a.id] ?? 0));
         break;
     }
     

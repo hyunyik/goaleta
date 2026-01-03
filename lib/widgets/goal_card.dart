@@ -286,12 +286,69 @@ class GoalCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                // Deadline info (if set)
+                if (goal.deadline != null && estimatedDate != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox.shrink(),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '마감: ${dateFormatter.format(goal.deadline!)} ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            '(${_getDeadlineDifference(estimatedDate, goal.deadline!)})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getDeadlineColor(estimatedDate, goal.deadline!),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getDeadlineDifference(DateTime eta, DateTime deadline) {
+    final difference = eta.difference(deadline).inDays;
+    if (difference > 0) {
+      return '+$difference일';
+    } else if (difference < 0) {
+      return '${difference}일';
+    } else {
+      return '동일';
+    }
+  }
+
+  Color _getDeadlineColor(DateTime eta, DateTime deadline) {
+    final difference = eta.difference(deadline).inDays;
+    if (difference > 0) {
+      return Colors.red; // Behind schedule
+    } else if (difference < 0) {
+      return Colors.green; // Ahead of schedule
+    } else {
+      return Colors.orange; // On schedule
+    }
   }
 
   String? _getBackgroundImage() {

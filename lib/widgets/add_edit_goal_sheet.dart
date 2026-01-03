@@ -25,6 +25,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
   late bool excludeWeekends;
   late GoalCategory selectedCategory;
   String? selectedUnit; // null means custom input
+  DateTime? selectedDeadline;
 
   // Unit suggestions based on category
   List<String> get suggestedUnits {
@@ -58,6 +59,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     selectedDate = widget.existingGoal?.startDate ?? DateTime.now();
     excludeWeekends = widget.existingGoal?.excludeWeekends ?? false;
     selectedCategory = widget.existingGoal?.category ?? GoalCategory.custom;
+    selectedDeadline = widget.existingGoal?.deadline;
     
     // Initialize selectedUnit based on existing goal
     if (widget.existingGoal?.unit != null) {
@@ -113,6 +115,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       startingAmount: startingAmount,
       startDate: selectedDate,
       excludeWeekends: excludeWeekends,
+      deadline: selectedDeadline,
       category: selectedCategory,
     );
 
@@ -187,6 +190,26 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectDeadline(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDeadline ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        selectedDeadline = picked;
       });
     }
   }
@@ -372,6 +395,40 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
             ),
             const SizedBox(height: 20),
 
+            // 마감일 (선택적)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('마감일 (선택)'),
+              subtitle: Text(
+                selectedDeadline != null
+                    ? dateFormatter.format(selectedDeadline!)
+                    : '설정 안 함',
+              ),
+              leading: Icon(
+                Icons.event,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              trailing: selectedDeadline != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          selectedDeadline = null;
+                        });
+                      },
+                    )
+                  : null,
+              onTap: () => _selectDeadline(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 
             // 시작일
             ListTile(
               contentPadding: EdgeInsets.zero,

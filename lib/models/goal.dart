@@ -76,6 +76,7 @@ class Goal {
   final GoalCategory category;
   final bool isArchived;
   final DateTime? archivedAt;
+  final DateTime? deadline; // Optional deadline for the goal
 
   Goal({
     String? id,
@@ -91,6 +92,7 @@ class Goal {
     this.category = GoalCategory.custom,
     this.isArchived = false,
     this.archivedAt,
+    this.deadline,
   })  : id = id ?? const Uuid().v4(),
         startDate = startDate ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
@@ -121,6 +123,7 @@ class Goal {
     GoalCategory? category,
     bool? isArchived,
     DateTime? archivedAt,
+    DateTime? deadline,
   }) {
     return Goal(
       id: id ?? this.id,
@@ -136,6 +139,7 @@ class Goal {
       category: category ?? this.category,
       isArchived: isArchived ?? this.isArchived,
       archivedAt: archivedAt ?? this.archivedAt,
+      deadline: deadline ?? this.deadline,
     );
   }
 
@@ -153,6 +157,7 @@ class Goal {
       'isCompleted': isCompleted,
       'completedAt': completedAt?.toIso8601String(),
       'category': category.name,
+      'deadline': deadline?.toIso8601String(),
       'isArchived': isArchived,
       'archivedAt': archivedAt?.toIso8601String(),
     };
@@ -181,6 +186,9 @@ class Goal {
       isArchived: json['isArchived'] ?? false,
       archivedAt: json['archivedAt'] != null
           ? DateTime.parse(json['archivedAt'])
+          : null,
+      deadline: json['deadline'] != null
+          ? DateTime.parse(json['deadline'])
           : null,
     );
   }
