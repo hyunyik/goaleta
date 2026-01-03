@@ -51,10 +51,12 @@ class GoalDetailScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: completedAsyncValue.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('오류 발생: $err')),
-        data: (completedAmount) {
+      body: SafeArea(
+        top: false, // Don't apply top padding since we extend behind app bar
+        child: completedAsyncValue.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('오류 발생: $err')),
+          data: (completedAmount) {
           final logs = logsAsyncValue.maybeWhen(
             data: (l) => l,
             orElse: () => [],
@@ -485,6 +487,7 @@ class GoalDetailScreen extends ConsumerWidget {
             ),
           );
         },
+        ),
       ),
     );
   }
