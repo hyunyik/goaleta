@@ -517,16 +517,6 @@ class GoalDetailScreen extends ConsumerWidget {
                                           color: Colors.black.withOpacity(0.4),
                                         ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '위의 + 버튼을 눌러 기록을 추가해보세요',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Colors.black.withOpacity(0.3),
-                                        ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -535,7 +525,7 @@ class GoalDetailScreen extends ConsumerWidget {
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.zero,
+                            padding: const EdgeInsets.only(bottom: 80),
                             itemCount: logs.length,
                             itemBuilder: (context, index) {
                               final log = logs[index];
@@ -554,6 +544,19 @@ class GoalDetailScreen extends ConsumerWidget {
         },
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'main_fab',
+        onPressed: () {
+          _showAddLogSheet(context, ref);
+        },
+        backgroundColor: goal.category.getColor(context),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          '새 기록',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 

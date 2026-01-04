@@ -357,7 +357,10 @@ class HomeScreen extends ConsumerWidget {
               // Goal list
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.only(
+                    top: 8,
+                    bottom: 80, // Add extra padding to prevent FAB from blocking content
+                  ),
                   itemCount: filteredGoals.length,
                   itemBuilder: (context, index) {
                     final goal = filteredGoals[index];
@@ -388,12 +391,17 @@ class HomeScreen extends ConsumerWidget {
         },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'main_fab',
         onPressed: () {
           _showAddGoalSheet(context, ref);
         },
         backgroundColor: Colors.purpleAccent,
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          '새 목표',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
