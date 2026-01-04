@@ -49,7 +49,7 @@ class LocalStorage {
   static Future<void> saveLogEntry(LogEntry entry) async {
     final logsData = _logsBox.get(entry.goalId);
     final logs = logsData != null 
-        ? (logsData as Map).values.map((e) => LogEntry.fromJson(Map<String, dynamic>.from(e))).toList()
+        ? logsData.values.map((e) => LogEntry.fromJson(Map<String, dynamic>.from(e))).toList()
         : <LogEntry>[];
     
     final index = logs.indexWhere((e) => e.id == entry.id);
@@ -77,7 +77,7 @@ class LocalStorage {
     if (logsData == null) return [];
     
     final logs = <LogEntry>[];
-    for (var entry in (logsData as Map).values) {
+    for (var entry in logsData.values) {
       try {
         logs.add(LogEntry.fromJson(Map<String, dynamic>.from(entry)));
       } catch (e) {
@@ -108,6 +108,74 @@ class LocalStorage {
       return (hour as int, minute as int);
     }
     return null;
+  }
+  
+  // Backup and Restore
+  static Future<Map<String, dynamic>> exportAllData() async {
+    final data = {
+      'version': '1.0.0',
+      'exportDate': DateTime.now().toIso8601String(),
+      'goals': <String, dynamic>{},
+      'logs': <String, dynamic>{},
+      'settings': <String, dynamic>{},
+    };
+    
+    // Export goals
+    final goalsMap = data['goals'] as Map<String, dynamic>;
+    for (var entry in _goalsBox.toMap().entries) {
+      goalsMap[entry.key] = entry.value;
+    }
+    
+    // Export logs
+    final logsMap = data['logs'] as Map<String, dynamic>;
+    for (var entry in _logsBox.toMap().entries) {
+      logsMap[entry.key] = entry.value;
+    }
+    
+    // Export settings
+    final settingsMap = data['settings'] as Map<String, dynamic>;
+    for (var entry in _settingsBox.toMap().entries) {
+      settingsMap[entry.key] = entry.value;
+    }
+    
+    return data;
+  }
+  
+  static Future<void> importAllData(Map<String, dynamic> data) async {
+    // Clear existing data
+    await _goalsBox.clear();
+    await _logsBox.clear();
+    await _settingsBox.clear();
+    
+    // Import goals
+    if (data['goals'] != null) {
+      final goals = data['goals'] as Map;
+      for (var entry in goals.entries) {
+        await _goalsBox.put(entry.key, entry.value);
+      }
+    }
+    
+    // Import logs
+    if (data['logs'] != null) {
+      final logs = data['logs'] as Map;
+      for (var entry in logs.entries) {
+        await _logsBox.put(entry.key, entry.value);
+      }
+    }
+    
+    // Import settings
+    if (data['settings'] != null) {
+      final settings = data['settings'] as Map;
+      for (var entry in settings.entries) {
+        await _settingsBox.put(entry.key, entry.value);
+      }
+    }
+  }
+  
+  static Future<void> resetAllData() async {
+    await _goalsBox.clear();
+    await _logsBox.clear();
+    await _settingsBox.clear();
   }
 }
 

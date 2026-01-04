@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/services/notification_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
+import 'dart:io';
 
 // Provider for alarm time (loaded from storage)
 final alarmTimeProvider = StateProvider<TimeOfDay?>((ref) {
@@ -41,9 +45,9 @@ class SettingsScreen extends ConsumerWidget {
           
           // Data management section
           _buildSectionHeader(context, '데이터 관리'),
-          _buildBackupTile(context),
-          _buildRestoreTile(context),
-          _buildResetTile(context),
+          _buildBackupTile(context, ref),
+          _buildRestoreTile(context, ref),
+          _buildResetTile(context, ref),
           const Divider(height: 1),
           
           const SizedBox(height: 24),
@@ -183,18 +187,25 @@ class SettingsScreen extends ConsumerWidget {
         );
         
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          final snackBar = ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('알림 시간이 ${picked.format(context)}로 설정되었습니다'),
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
               action: SnackBarAction(
                 label: '테스트',
                 onPressed: () async {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   await NotificationService().showTestNotification();
                 },
               ),
             ),
           );
+          
+          // Force auto-dismiss after duration
+          Future.delayed(const Duration(seconds: 4), () {
+            snackBar.close();
+          });
         }
       } catch (e) {
         if (context.mounted) {
@@ -209,7 +220,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildBackupTile(BuildContext context) {
+  Widget _buildBackupTile(BuildContext context, WidgetRef ref) {
     return ListTile(
       leading: Icon(
         Icons.backup_outlined,
@@ -224,7 +235,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRestoreTile(BuildContext context) {
+  Widget _buildRestoreTile(BuildContext context, WidgetRef ref) {
     return ListTile(
       leading: Icon(
         Icons.restore_outlined,
@@ -234,12 +245,12 @@ class SettingsScreen extends ConsumerWidget {
       subtitle: const Text('백업 파일에서 데이터 복원'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        _showRestoreDialog(context);
+        _showRestoreDialog(context, ref);
       },
     );
   }
 
-  Widget _buildResetTile(BuildContext context) {
+  Widget _buildResetTile(BuildContext context, WidgetRef ref) {
     return ListTile(
       leading: const Icon(
         Icons.delete_forever_outlined,
@@ -252,7 +263,7 @@ class SettingsScreen extends ConsumerWidget {
       subtitle: const Text('모든 데이터 삭제'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        _showResetDialog(context);
+        _showResetDialog(context, ref);
       },
     );
   }
@@ -262,34 +273,212 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('백업'),
-        content: const Text('백업 기능은 준비 중입니다.\n향후 업데이트에서 제공될 예정입니다.'),
+        content: const Text('모든 목표와 기록을 파일로 백업하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performBackup(context);
+            },
+            child: const Text('백업'),
           ),
         ],
       ),
     );
   }
+  
+  Future<void> _performBackup(BuildContext context) async {
+    try {
+      // Export data first
+      final data = await LocalStorage.exportAllData();
+      final jsonString = jsonEncode(data);
+      
+      // Generate filename with timestamp
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final fileName = 'goaleta_backup_$timestamp.json';
+      
+      // Let user choose directory
+      final selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '백업 파일을 저장할 폴더 선택',
+      );
+      
+      if (selectedDirectory == null) {
+        // User cancelled
+        return;
+      }
+      
+      // Show loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('백업 중...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+      
+      // Create full file path
+      final filePath = '$selectedDirectory/$fileName';
+      
+      // Write file to chosen location as bytes
+      final file = File(filePath);
+      await file.writeAsBytes(utf8.encode(jsonString));
+      
+      // Dismiss loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Show success message with file path
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('백업 완료!\n파일명: $fileName\n저장 위치: $selectedDirectory'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: '확인',
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('백업 실패: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
 
-  void _showRestoreDialog(BuildContext context) {
+  void _showRestoreDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('복원'),
-        content: const Text('복원 기능은 준비 중입니다.\n향후 업데이트에서 제공될 예정입니다.'),
+        content: const Text('백업 파일을 선택하여 데이터를 복원하시겠습니까?\n\n⚠️ 현재 데이터는 모두 삭제됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performRestore(context, ref);
+            },
+            child: const Text('복원'),
           ),
         ],
       ),
     );
   }
+  
+  Future<void> _performRestore(BuildContext context, WidgetRef ref) async {
+    try {
+      // Pick file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      
+      if (result == null || result.files.isEmpty) {
+        return; // User canceled
+      }
+      
+      final filePath = result.files.single.path;
+      if (filePath == null) {
+        throw Exception('파일 경로를 가져올 수 없습니다');
+      }
+      
+      // Show loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('복원 중...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+      
+      // Read and parse file
+      final file = File(filePath);
+      final jsonString = await file.readAsString();
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      // Validate data
+      if (!data.containsKey('goals') || !data.containsKey('logs')) {
+        throw Exception('올바르지 않은 백업 파일 형식입니다');
+      }
+      
+      // Import data
+      await LocalStorage.importAllData(data);
+      
+      // Reload goals provider
+      ref.invalidate(goalsProvider);
+      
+      // Dismiss loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('복원 완료! 앱을 다시 시작해주세요.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Reload the app after a delay
+        await Future.delayed(const Duration(seconds: 2));
+        if (context.mounted) {
+          // Navigate to home and clear all routes
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('복원 실패: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
 
-  void _showResetDialog(BuildContext context) {
+  void _showResetDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -303,15 +492,9 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () {
-              // TODO: Implement reset functionality
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('초기화 기능은 준비 중입니다'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+              await _performReset(context, ref);
             },
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
@@ -321,6 +504,67 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+  
+  Future<void> _performReset(BuildContext context, WidgetRef ref) async {
+    try {
+      // Show loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('초기화 중...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+      
+      // Reset all data
+      await LocalStorage.resetAllData();
+      
+      // Reload goals provider
+      ref.invalidate(goalsProvider);
+      
+      // Dismiss loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('초기화 완료! 앱을 다시 시작해주세요.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        
+        // Navigate to home and clear all routes after a delay
+        await Future.delayed(const Duration(seconds: 2));
+        if (context.mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('초기화 실패: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 
