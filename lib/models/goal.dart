@@ -1,6 +1,11 @@
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 
+// Helper class for distinguishing between null and not provided in copyWith
+class _Undefined {
+  const _Undefined();
+}
+
 enum GoalCategory {
   reading,
   study,
@@ -123,7 +128,7 @@ class Goal {
     GoalCategory? category,
     bool? isArchived,
     DateTime? archivedAt,
-    DateTime? deadline,
+    Object? deadline = const _Undefined(),
   }) {
     return Goal(
       id: id ?? this.id,
@@ -139,7 +144,7 @@ class Goal {
       category: category ?? this.category,
       isArchived: isArchived ?? this.isArchived,
       archivedAt: archivedAt ?? this.archivedAt,
-      deadline: deadline ?? this.deadline,
+      deadline: deadline is _Undefined ? this.deadline : deadline as DateTime?,
     );
   }
 

@@ -63,6 +63,12 @@ class GoalCard extends ConsumerWidget {
     required bool isLoading,
   }) {
     final percentage = goal.getProgressPercentage(completedAmount);
+    final formattedCompleted = completedAmount % 1 == 0 
+        ? completedAmount.toStringAsFixed(0) 
+        : completedAmount.toString();
+    final formattedTotal = goal.totalAmount % 1 == 0 
+        ? goal.totalAmount.toStringAsFixed(0) 
+        : goal.totalAmount.toString();
 
     final hasRecords = logs.isNotEmpty;
 
@@ -105,6 +111,8 @@ class GoalCard extends ConsumerWidget {
             percentage,
             estimatedDate,
             dateFormatter,
+            formattedCompleted,
+            formattedTotal,
           );
         },
         openBuilder: (context, closeContainer) {
@@ -120,9 +128,11 @@ class GoalCard extends ConsumerWidget {
     double percentage,
     DateTime? estimatedDate,
     DateFormat dateFormatter,
+    String formattedCompleted,
+    String formattedTotal,
   ) {
     return SizedBox(
-      height: 220,
+      height: 240,
       child: Column(
         children: [
           // Top 2/3: Background image with title
@@ -232,32 +242,43 @@ class GoalCard extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Progress bar with percentage
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: percentage / 100,
-                          minHeight: 12,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            goal.category.getColor(context),
+                // Percentage and amount info above progress bar
+                Center(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${percentage.toStringAsFixed(0)}% ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: goal.category.getColor(context),
                           ),
                         ),
-                      ),
+                        TextSpan(
+                          text: '($formattedCompleted/$formattedTotal ${goal.unit})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${percentage.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: goal.category.getColor(context),
-                      ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: percentage / 100,
+                    minHeight: 12,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      goal.category.getColor(context),
                     ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 // Start date and ETA
