@@ -70,18 +70,14 @@ class GoalCard extends ConsumerWidget {
         ? goal.totalAmount.toStringAsFixed(0) 
         : goal.totalAmount.toString();
 
-    final hasRecords = logs.isNotEmpty;
-
-    final etaData = hasRecords
-        ? ETACalculator.calculateSimpleAverageETA(
-            completedAmount: completedAmount,
-            totalAmount: goal.totalAmount,
-            startDate: goal.startDate,
-            logs: logs,
-            excludeWeekends: goal.excludeWeekends,
-            startingAmount: goal.startingAmount,
-          )
-        : null;
+    final etaData = ETACalculator.calculateSimpleAverageETA(
+      cumulativeAmount: completedAmount,
+      totalAmount: goal.totalAmount,
+      startDate: goal.startDate,
+      logs: logs,
+      excludeWeekends: goal.excludeWeekends,
+      startingAmount: goal.startingAmount,
+    );
 
     final estimatedDate =
         etaData != null ? etaData['estimatedDate'] as DateTime : null;

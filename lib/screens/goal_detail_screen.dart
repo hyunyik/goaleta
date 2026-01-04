@@ -65,18 +65,14 @@ class GoalDetailScreen extends ConsumerWidget {
           final remaining = goal.getRemainingAmount(completedAmount);
           final percentage = goal.getProgressPercentage(completedAmount);
 
-          final hasRecords = logs.isNotEmpty;
-
-          final etaData = hasRecords
-              ? ETACalculator.calculateSimpleAverageETA(
-                  completedAmount: completedAmount,
-                  totalAmount: goal.totalAmount,
-                  startDate: goal.startDate,
-                  logs: logs.cast<LogEntry>(),
-                  excludeWeekends: goal.excludeWeekends,
-                  startingAmount: goal.startingAmount,
-                )
-              : null;
+          final etaData = ETACalculator.calculateSimpleAverageETA(
+            cumulativeAmount: completedAmount,
+            totalAmount: goal.totalAmount,
+            startDate: goal.startDate,
+            logs: logs.cast<LogEntry>(),
+            excludeWeekends: goal.excludeWeekends,
+            startingAmount: goal.startingAmount,
+          );
 
           final estimatedDate =
               etaData != null ? etaData['estimatedDate'] as DateTime : null;
@@ -319,7 +315,7 @@ class GoalDetailScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${completedAmount.toStringAsFixed(0)}/${(goal.totalAmount - goal.startingAmount).toStringAsFixed(0)}',
+                                  '${completedAmount.toStringAsFixed(0)}/${goal.totalAmount.toStringAsFixed(0)}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall

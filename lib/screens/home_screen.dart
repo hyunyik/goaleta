@@ -523,15 +523,16 @@ class HomeScreen extends ConsumerWidget {
               orElse: () => 0.0,
             );
             
-            if (logs.isNotEmpty) {
-              final etaData = ETACalculator.calculateSimpleAverageETA(
-                completedAmount: completed,
-                totalAmount: goal.totalAmount,
-                startDate: goal.startDate,
-                logs: logs.cast<LogEntry>(),
-                excludeWeekends: goal.excludeWeekends,
-                startingAmount: goal.startingAmount,
-              );
+            final etaData = ETACalculator.calculateSimpleAverageETA(
+              cumulativeAmount: completed,
+              totalAmount: goal.totalAmount,
+              startDate: goal.startDate,
+              logs: logs.cast<LogEntry>(),
+              excludeWeekends: goal.excludeWeekends,
+              startingAmount: goal.startingAmount,
+            );
+            
+            if (etaData != null) {
               final estimatedDate = etaData['estimatedDate'] as DateTime;
               final overdueDays = estimatedDate.difference(goal.deadline!).inDays;
               overdueMap[goal.id] = overdueDays;

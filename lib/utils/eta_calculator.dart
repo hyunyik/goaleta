@@ -3,24 +3,27 @@ import 'package:goaleta/models/goal.dart';
 class ETACalculator {
   /// 단순 평균 기반 ETA 계산
   ///
-  /// [completedAmount]: 현재까지 완료된 양
+  /// [cumulativeAmount]: 현재까지 누적된 양 (startingAmount 포함)
   /// [totalAmount]: 목표 총량
   /// [startDate]: 목표 시작일
   /// [logs]: 기록 리스트
   /// [startingAmount]: 시작 시점의 누적량 (기본값 0)
   ///
-  /// 반환: {'remainingDays': 남은 일수, 'estimatedDate': 예상 완료일}
-  static Map<String, dynamic> calculateSimpleAverageETA({
-    required double completedAmount,
+  /// 반환: {'remainingDays': 남은 일수, 'estimatedDate': 예상 완료일} 또는 null (기록이 없을 때)
+  static Map<String, dynamic>? calculateSimpleAverageETA({
+    required double cumulativeAmount,
     required double totalAmount,
     required DateTime startDate,
     required List<LogEntry> logs,
     bool excludeWeekends = false,
     double startingAmount = 0,
   }) {
-    final effectiveTotal = totalAmount - startingAmount;
+    // 기록이 없으면 null 반환 (ETA 계산 불가)
+    if (logs.isEmpty) {
+      return null;
+    }
 
-    if (completedAmount >= effectiveTotal) {
+    if (cumulativeAmount >= totalAmount) {
       return {
         'remainingDays': 0,
         'estimatedDate': DateTime.now(),
@@ -28,40 +31,35 @@ class ETACalculator {
       };
     }
 
-    final remaining = effectiveTotal - completedAmount;
+    final remaining = totalAmount - cumulativeAmount;
+
+    // 기록들의 총합 계산 (starting amount 제외)
+    final logsTotal = logs.fold<double>(0, (sum, log) => sum + log.amount);
 
     double dailyAverage;
 
-    // 기록이 있으면 최근 14일 평균 사용, 없으면 전체 평균
-    if (logs.isNotEmpty) {
-      final now = DateTime.now();
-      final cutoffDate = DateTime(now.year, now.month, now.day - 14);
+    final now = DateTime.now();
+    final cutoffDate = DateTime(now.year, now.month, now.day - 14);
 
-      // 최근 14일 기록 필터링
-      final recentLogs = logs
-          .where((log) =>
-              log.logDate.isAfter(cutoffDate) ||
-              log.logDate.isAtSameMomentAs(cutoffDate))
-          .toList();
+    // 최근 14일 기록 필터링
+    final recentLogs = logs
+        .where((log) =>
+            log.logDate.isAfter(cutoffDate) ||
+            log.logDate.isAtSameMomentAs(cutoffDate))
+        .toList();
 
-      if (recentLogs.isNotEmpty) {
-        // 최근 14일 동안 기록이 있는 날짜들의 일평균
-        final groupedByDate = groupLogsByDate(recentLogs);
-        final totalRecent =
-            groupedByDate.values.fold<double>(0, (sum, val) => sum + val);
-        final daysWithRecords = groupedByDate.length;
-        dailyAverage = totalRecent / daysWithRecords;
-      } else {
-        // 최근 14일 기록이 없으면 전체 평균
-        int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
-        if (elapsedDays == 0) elapsedDays = 1;
-        dailyAverage = completedAmount / elapsedDays;
-      }
+    if (recentLogs.isNotEmpty) {
+      // 최근 14일 동안 기록이 있는 날짜들의 일평균
+      final groupedByDate = groupLogsByDate(recentLogs);
+      final totalRecent =
+          groupedByDate.values.fold<double>(0, (sum, val) => sum + val);
+      final daysWithRecords = groupedByDate.length;
+      dailyAverage = totalRecent / daysWithRecords;
     } else {
-      // 기록이 없으면 경과일 기준 평균
+      // 최근 14일 기록이 없으면 전체 기록 평균
       int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
       if (elapsedDays == 0) elapsedDays = 1;
-      dailyAverage = completedAmount / elapsedDays;
+      dailyAverage = logsTotal / elapsedDays;
     }
 
     if (dailyAverage <= 0) dailyAverage = 0.1; // 최소 0.1
@@ -81,8 +79,8 @@ class ETACalculator {
   }
 
   /// 최근 가중 평균 기반 ETA 계산 (최근 14일 기준)
-  static Map<String, dynamic> calculateWeightedAverageETA({
-    required double completedAmount,
+  static Map<String, dynamic>? calculateWeightedAverageETA({
+    required double cumulativeAmount,
     required double totalAmount,
     required DateTime startDate,
     required List<LogEntry> logs,
@@ -90,16 +88,19 @@ class ETACalculator {
     int recentDays = 14,
     double startingAmount = 0,
   }) {
-    final effectiveTotal = totalAmount - startingAmount;
+    // 기록이 없으면 null 반환 (ETA 계산 불가)
+    if (logs.isEmpty) {
+      return null;
+    }
 
-    if (completedAmount >= effectiveTotal) {
+    if (cumulativeAmount >= totalAmount) {
       return {
         'remainingDays': 0,
         'estimatedDate': DateTime.now(),
       };
     }
 
-    final remaining = effectiveTotal - completedAmount;
+    final remaining = totalAmount - cumulativeAmount;
 
     // 최근 N일 동안의 기록 필터링
     final now = DateTime.now();
@@ -115,13 +116,16 @@ class ETACalculator {
             log.logDate.isAtSameMomentAs(cutoffDate))
         .toList();
 
+    // 기록들의 총합 계산 (starting amount 제외)
+    final logsTotal = logs.fold<double>(0, (sum, log) => sum + log.amount);
+
     double dailyAverage;
 
     if (recentLogs.isEmpty) {
-      // 최근 기록이 없으면 단순 평균 사용
+      // 최근 기록이 없으면 전체 기록 평균 사용
       int elapsedDays = _getElapsedDays(startDate, excludeWeekends);
       if (elapsedDays == 0) elapsedDays = 1;
-      dailyAverage = completedAmount / elapsedDays;
+      dailyAverage = logsTotal / elapsedDays;
       if (dailyAverage <= 0) dailyAverage = 0.1;
     } else {
       // 최근 기록들의 평균 계산

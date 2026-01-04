@@ -350,9 +350,15 @@ final logNotifierProvider =
   return LogNotifier(goalId);
 });
 
-/// 특정 Goal의 완료된 총량 계산
+/// 특정 Goal의 완료된 총량 계산 (starting amount 포함)
 final completedAmountProvider =
     FutureProvider.family<double, String>((ref, goalId) async {
   final logs = await ref.watch(logsProvider(goalId).future);
-  return logs.fold<double>(0, (sum, log) => sum + log.amount);
+  final goalsAsync = ref.watch(goalsProvider);
+  final goal = goalsAsync.maybeWhen(
+    data: (goals) => goals.firstWhere((g) => g.id == goalId),
+    orElse: () => null,
+  );
+  final logsTotal = logs.fold<double>(0, (sum, log) => sum + log.amount);
+  return logsTotal + (goal?.startingAmount ?? 0);
 });

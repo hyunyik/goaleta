@@ -102,15 +102,13 @@ class Goal {
         startDate = startDate ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
 
-  double getProgressPercentage(double completedAmount) {
-    final effectiveTotal = totalAmount - startingAmount;
-    if (effectiveTotal <= 0) return 0;
-    return (completedAmount / effectiveTotal * 100).clamp(0, 100);
+  double getProgressPercentage(double cumulativeAmount) {
+    if (totalAmount <= 0) return 0;
+    return (cumulativeAmount / totalAmount * 100).clamp(0, 100);
   }
 
-  double getRemainingAmount(double completedAmount) {
-    final effectiveTotal = totalAmount - startingAmount;
-    return (effectiveTotal - completedAmount).clamp(0, double.infinity);
+  double getRemainingAmount(double cumulativeAmount) {
+    return (totalAmount - cumulativeAmount).clamp(0, double.infinity);
   }
 
   // Goal 객체를 복사본으로 만들기
