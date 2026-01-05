@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/widgets/custom_date_picker.dart';
-import 'package:goaleta/widgets/congratulations_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:goaleta/providers/goal_provider.dart';
 import 'package:intl/intl.dart';
 
 class AddLogBottomSheet extends ConsumerStatefulWidget {
@@ -123,89 +121,9 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
       note: noteController.text.isEmpty ? null : noteController.text,
     );
 
-    // Check if goal will be completed with this log
-    final newCumulativeTotal = (widget.previousCumulativeTotal ?? 0) + 
-        (widget.existingLog == null ? finalAmount : finalAmount - widget.existingLog!.amount);
-    final effectiveTotal = widget.goal.totalAmount - widget.goal.startingAmount;
-    
-    // Debug prints
-    print('=== Goal Completion Check ===');
-    print('Previous cumulative: ${widget.previousCumulativeTotal ?? 0}');
-    print('New amount: $finalAmount');
-    print('Existing log amount: ${widget.existingLog?.amount ?? 0}');
-    print('New cumulative total: $newCumulativeTotal');
-    print('Effective total: $effectiveTotal');
-    print('Is completed: ${widget.goal.isCompleted}');
-    print('Is archived: ${widget.goal.isArchived}');
-    print('Will complete: ${newCumulativeTotal >= effectiveTotal && !widget.goal.isCompleted && !widget.goal.isArchived}');
-    
-    final willComplete = newCumulativeTotal >= effectiveTotal && !widget.goal.isCompleted && !widget.goal.isArchived;
-    
-    // Save the current navigator and notifiers before popping
-    final navigator = Navigator.of(context);
-    final goalNotifier = ref.read(goalsProvider.notifier);
-    final logNotifier = ref.read(logNotifierProvider(widget.goal.id).notifier);
-    
-    navigator.pop();
+    // Just save and pop - let parent handle completion checking
+    Navigator.of(context).pop();
     widget.onSave(log);
-    
-    if (willComplete) {
-      print('Showing congratulations dialog...');
-      // Show congratulations dialog after navigation is complete
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (navigator.context.mounted) {
-            showDialog(
-              context: navigator.context,
-              barrierDismissible: false,
-              builder: (dialogContext) => CongratulationsDialog(
-                goal: widget.goal,
-                lastLog: log,
-                onArchive: () {
-                  goalNotifier.archiveGoal(widget.goal.id);
-                  if (navigator.context.mounted) {
-                    // Navigate back to home screen
-                    Navigator.of(navigator.context).pop();
-                    ScaffoldMessenger.of(navigator.context).showSnackBar(
-                      SnackBar(
-                        content: const Text('목표가 보관함으로 이동되었습니다'),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    );
-                  }
-                },
-                onCorrectRecord: (logToEdit) async {
-                  // Delete the last log entry
-                  await logNotifier.deleteLog(logToEdit.id);
-                  
-                  // Refresh the providers by getting the container from the current context
-                  if (navigator.context.mounted) {
-                    final container = ProviderScope.containerOf(navigator.context);
-                    container.invalidate(logsProvider(widget.goal.id));
-                    container.invalidate(completedAmountProvider(widget.goal.id));
-                    
-                    // Show snackbar with clear message
-                    ScaffoldMessenger.of(navigator.context).showSnackBar(
-                      SnackBar(
-                        content: const Text('최종 기록이 삭제되었습니다. 올바른 기록을 다시 입력해주세요'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-            );
-          }
-        });
-      });
-    }
   }
 
   void _showErrorSnackBar(String message) {

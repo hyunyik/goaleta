@@ -7,11 +7,13 @@ import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/utils/eta_calculator.dart';
 import 'package:goaleta/widgets/add_log_sheet.dart';
 import 'package:goaleta/widgets/running_cat.dart';
+import 'package:goaleta/widgets/congratulations_dialog.dart';
 
 class GoalDetailScreen extends ConsumerWidget {
   final Goal goal;
+  final bool isReadOnly;
 
-  const GoalDetailScreen({required this.goal, Key? key}) : super(key: key);
+  const GoalDetailScreen({required this.goal, this.isReadOnly = false, Key? key}) : super(key: key);
 
   String? _getBackgroundImage() {
     // Map category to background image - same as GoalCard
@@ -484,12 +486,13 @@ class GoalDetailScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () {
-                                _showAddLogSheet(context, ref);
-                              },
-                            ),
+                            if (!isReadOnly)
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed: () {
+                                  _showAddLogSheet(context, ref);
+                                },
+                              ),
                           ],
                         ),
                         if (logs.isEmpty)
@@ -540,7 +543,7 @@ class GoalDetailScreen extends ConsumerWidget {
         },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: isReadOnly ? null : FloatingActionButton.extended(
         heroTag: 'main_fab',
         onPressed: () {
           _showAddLogSheet(context, ref);
@@ -637,6 +640,16 @@ class GoalDetailScreen extends ConsumerWidget {
     );
   }
 
+  String _formatCompactNumber(double value) {
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    } else if (value >= 100) {
+      return value.toStringAsFixed(0);
+    } else {
+      return value.toStringAsFixed(0);
+    }
+  }
+
   Widget _buildTransparentBarChart(BuildContext context, List<LogEntry> logs) {
     final data = ETACalculator.getRecentDaysData(logs: logs, days: 14);
     final maxValue = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
@@ -683,7 +696,7 @@ class GoalDetailScreen extends ConsumerWidget {
                             children: [
                               // Count above bar
                               Text(
-                                value > 0 ? value.toStringAsFixed(0) : '',
+                                value > 0 ? _formatCompactNumber(value) : '',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   color: Colors.white,
@@ -904,29 +917,167 @@ class GoalDetailScreen extends ConsumerWidget {
             else
               const SizedBox(width: 8),
             // Menu button
-            PopupMenuButton<String>(
-              padding: EdgeInsets.zero,
-              icon: Icon(
-                Icons.more_vert,
-                size: 18,
-                color: Colors.black.withOpacity(0.4),
+            if (!isReadOnly)
+              PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                icon: Icon(
+                  Icons.more_vert,
+                  size: 18,
+                  color: Colors.black.withOpacity(0.4),
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditLogSheet(context, log, ref);
+                  } else if (value == 'delete') {
+                    _showDeleteLogDialog(context, log, ref);
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('수정')),
+                  const PopupMenuItem(value: 'delete', child: Text('삭제')),
+                ],
               ),
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showEditLogSheet(context, log, ref);
-                } else if (value == 'delete') {
-                  _showDeleteLogDialog(context, log, ref);
-                }
-              },
-              itemBuilder: (BuildContext context) => [
-                const PopupMenuItem(value: 'edit', child: Text('수정')),
-                const PopupMenuItem(value: 'delete', child: Text('삭제')),
-              ],
-            ),
           ],
         ),
       ),
     );
+  }
+
+  void _checkAndHandleCompletion({
+    required ScaffoldMessengerState scaffoldMessenger,
+    required NavigatorState navigator,
+    required WidgetRef ref,
+    required LogEntry lastLog,
+  }) async {
+    // Check if goal is completed or archived
+    if (goal.isCompleted || goal.isArchived) {
+      return;
+    }
+    
+    final goalNotifier = ref.read(goalsProvider.notifier);
+    final logNotifier = ref.read(logNotifierProvider(goal.id).notifier);
+    
+    // Wait a bit for the log to be saved and UI to settle
+    await Future.delayed(const Duration(milliseconds: 150));
+    
+    // Refresh the provider to get latest data
+    ref.invalidate(logsProvider(goal.id));
+    await Future.delayed(const Duration(milliseconds: 50));
+    
+    // Get all logs to calculate cumulative total
+    final logsAsyncValue = ref.read(logsProvider(goal.id));
+    final logs = logsAsyncValue.maybeWhen(
+      data: (l) => l,
+      orElse: () => <LogEntry>[],
+    );
+    
+    // Calculate cumulative total
+    final cumulativeTotal = logs.fold<double>(0, (sum, log) => sum + log.amount);
+    final effectiveTotal = goal.totalAmount - goal.startingAmount;
+    
+    print('=== Completion Check ===');
+    print('Cumulative total: $cumulativeTotal');
+    print('Effective total: $effectiveTotal');
+    print('Last log amount: ${lastLog.amount}');
+    print('Total logs count: ${logs.length}');
+    
+    if (cumulativeTotal >= effectiveTotal) {
+      // Goal is complete or overflowed
+      LogEntry finalLog = lastLog;
+      
+      // Function to show the dialog
+      void showCongratulationsDialog(LogEntry log) {
+        try {
+          print('Calling showDialog...');
+          showDialog(
+            context: navigator.context,
+            barrierDismissible: false,
+            builder: (dialogContext) => CongratulationsDialog(
+              goal: goal,
+              lastLog: log,
+              onArchive: () {
+                print('Archive button pressed');
+                goalNotifier.archiveGoal(goal.id);
+                
+                // Pop everything back to home screen
+                Navigator.of(dialogContext).popUntil((route) => route.isFirst);
+                
+                // Show snackbar
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: const Text('목표가 보관함으로 이동되었습니다'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+              },
+              onCorrectRecord: (logToEdit) async {
+                print('Delete final record button pressed for log: ${logToEdit.id}');
+                try {
+                  // Delete the log
+                  await logNotifier.deleteLog(logToEdit.id);
+                  
+                  // Refresh providers
+                  ref.invalidate(logsProvider(goal.id));
+                  ref.invalidate(completedAmountProvider(goal.id));
+                  
+                  // Close dialog
+                  Navigator.of(dialogContext).pop();
+                  
+                  // Show confirmation
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('최종 기록이 삭제되었습니다. 다시 입력해주세요.'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                  print('Log deleted successfully');
+                } catch (e) {
+                  print('Error deleting log: $e');
+                }
+              },
+            ),
+          );
+          print('Dialog shown successfully!');
+        } catch (e) {
+          print('Error showing dialog: $e');
+        }
+      }
+      
+      // Check for overflow and correct if necessary
+      if (cumulativeTotal > effectiveTotal) {
+        final overflow = cumulativeTotal - effectiveTotal;
+        final correctedAmount = lastLog.amount - overflow;
+        
+        print('Overflow detected: $overflow');
+        print('Correcting last log from ${lastLog.amount} to $correctedAmount');
+        
+        // Update the last log with corrected amount
+        finalLog = lastLog.copyWith(amount: correctedAmount);
+        ref.read(logNotifierProvider(goal.id).notifier).updateLog(finalLog);
+        ref.invalidate(logsProvider(goal.id));
+        ref.invalidate(completedAmountProvider(goal.id));
+        
+        print('Log corrected and saved');
+        
+        // Show dialog after a delay using Future.then to avoid async/await issues
+        Future.delayed(const Duration(milliseconds: 100)).then((_) {
+          print('Preparing to show congratulations dialog...');
+          print('Final log amount: ${finalLog.amount}');
+          showCongratulationsDialog(finalLog);
+        });
+      } else {
+        // No overflow, show dialog immediately
+        print('Preparing to show congratulations dialog...');
+        print('Final log amount: ${finalLog.amount}');
+        showCongratulationsDialog(finalLog);
+      }
+    }
   }
 
   void _showDeleteLogDialog(BuildContext context, LogEntry log, WidgetRef ref) {
@@ -999,6 +1150,10 @@ class GoalDetailScreen extends ConsumerWidget {
         existingLogDates: existingLogDates,
         goal: goal,
         onSave: (log) async {
+          // Capture context objects IMMEDIATELY before any async operations
+          final capturedScaffoldMessenger = ScaffoldMessenger.of(context);
+          final capturedNavigator = Navigator.of(context);
+          
           // Check if a log already exists for this date
           final logsAsyncValue = ref.read(logsProvider(goal.id));
           final logs = logsAsyncValue.maybeWhen(
@@ -1055,6 +1210,14 @@ class GoalDetailScreen extends ConsumerWidget {
                   .addLog(updatedLog);
               ref.invalidate(logsProvider(goal.id));
               ref.invalidate(completedAmountProvider(goal.id));
+              
+              // Check for completion after adding
+              _checkAndHandleCompletion(
+                scaffoldMessenger: capturedScaffoldMessenger,
+                navigator: capturedNavigator,
+                ref: ref,
+                lastLog: updatedLog,
+              );
             } else if (result == 'replace') {
               // Replace existing value
               final updatedLog = existingLog.copyWith(
@@ -1062,11 +1225,24 @@ class GoalDetailScreen extends ConsumerWidget {
                 note: log.note,
               );
               HapticFeedback.mediumImpact();
+              
+              // Save the log first
               ref
                   .read(logNotifierProvider(goal.id).notifier)
                   .addLog(updatedLog);
               ref.invalidate(logsProvider(goal.id));
               ref.invalidate(completedAmountProvider(goal.id));
+              
+              // Wait a bit for the replacement to be saved before checking completion
+              Future.delayed(const Duration(milliseconds: 50)).then((_) {
+                // Check for completion after replacing using captured context objects
+                _checkAndHandleCompletion(
+                  scaffoldMessenger: capturedScaffoldMessenger,
+                  navigator: capturedNavigator,
+                  ref: ref,
+                  lastLog: updatedLog,
+                );
+              });
             }
             // If 'cancel', do nothing
           } else {
@@ -1075,6 +1251,14 @@ class GoalDetailScreen extends ConsumerWidget {
             ref.read(logNotifierProvider(goal.id).notifier).addLog(log);
             ref.invalidate(logsProvider(goal.id));
             ref.invalidate(completedAmountProvider(goal.id));
+            
+            // Check for completion after adding
+            _checkAndHandleCompletion(
+              scaffoldMessenger: capturedScaffoldMessenger,
+              navigator: capturedNavigator,
+              ref: ref,
+              lastLog: log,
+            );
           }
         },
       ),
@@ -1108,6 +1292,14 @@ class GoalDetailScreen extends ConsumerWidget {
           ref.read(logNotifierProvider(goal.id).notifier).updateLog(updatedLog);
           ref.invalidate(logsProvider(goal.id));
           ref.invalidate(completedAmountProvider(goal.id));
+          
+          // Check for completion after updating
+          _checkAndHandleCompletion(
+            scaffoldMessenger: ScaffoldMessenger.of(context),
+            navigator: Navigator.of(context),
+            ref: ref,
+            lastLog: updatedLog,
+          );
         },
       ),
     );

@@ -389,7 +389,7 @@ class ArchivesScreen extends ConsumerWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => GoalDetailScreen(goal: goal),
+              builder: (context) => GoalDetailScreen(goal: goal, isReadOnly: true),
             ),
           );
         },
