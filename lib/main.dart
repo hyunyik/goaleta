@@ -159,7 +159,7 @@ class GoaletaApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('ko', 'KR')],
-      home: const HomeScreen(),
+      home: const HomeScreenWrapper(),
     );
   }
 }

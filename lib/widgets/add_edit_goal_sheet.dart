@@ -39,7 +39,7 @@ class _AddEditGoalBottomSheetState extends State<AddEditGoalBottomSheet> {
       case GoalCategory.reading:
         return ['페이지', '권', '챕터'];
       case GoalCategory.study:
-        return ['시간', '분', '문제', '강의'];
+        return ['페이지', '시간', '문제', '강의'];
       case GoalCategory.fitness:
         return ['회', '분', 'km', '세트'];
       case GoalCategory.writing:

@@ -44,6 +44,10 @@ dependencies:
   # File Operations
   file_picker: ^8.0.0+1
   path_provider: ^2.1.1
+  shared_preferences: ^2.2.0
+  
+  # Feature Tour/Onboarding
+  showcaseview: ^3.0.0
 
 dev_dependencies:
   flutter_test:

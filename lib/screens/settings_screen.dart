@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:goaleta/providers/goal_provider.dart';
 import 'package:goaleta/services/notification_service.dart';
+import 'package:goaleta/services/onboarding_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -48,6 +48,13 @@ class SettingsScreen extends ConsumerWidget {
           _buildBackupTile(context, ref),
           _buildRestoreTile(context, ref),
           _buildResetTile(context, ref),
+          const Divider(height: 1),
+          
+          const SizedBox(height: 16),
+          
+          // Help section
+          _buildSectionHeader(context, '도움말'),
+          _buildRestartTourTile(context, ref),
           const Divider(height: 1),
           
           const SizedBox(height: 24),
@@ -264,6 +271,24 @@ class SettingsScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
         _showResetDialog(context, ref);
+      },
+    );
+  }
+
+  Widget _buildRestartTourTile(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: Icon(
+        Icons.help_outline,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('홈 화면 가이드 다시 보기'),
+      subtitle: const Text('버튼 설명을 다시 확인하세요'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () async {
+        await OnboardingService.resetHomeTour();
+        if (context.mounted) {
+          Navigator.pop(context, true); // Return true to indicate tour should restart
+        }
       },
     );
   }

@@ -7,6 +7,8 @@ import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/screens/archives_screen.dart';
 import 'package:goaleta/screens/settings_screen.dart';
 import 'package:goaleta/utils/eta_calculator.dart';
+import 'package:goaleta/services/onboarding_service.dart';
+import 'package:showcaseview/showcaseview.dart';
 import 'dart:math';
 
 // Provider for selected category filter
@@ -29,8 +31,75 @@ enum SortOption {
 // Provider for selected sort option
 final selectedSortProvider = StateProvider<SortOption>((ref) => SortOption.createdDesc);
 
-class HomeScreen extends ConsumerWidget {
+// Wrapper widget with ShowCaseWidget
+class HomeScreenWrapper extends StatelessWidget {
+  const HomeScreenWrapper({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ShowCaseWidget(
+      builder: (context) => const HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Showcase keys for each button
+  final GlobalKey _addGoalKey = GlobalKey();
+  final GlobalKey _trophiesKey = GlobalKey();
+  final GlobalKey _archivesKey = GlobalKey();
+  final GlobalKey _alarmKey = GlobalKey();
+  final GlobalKey _settingsKey = GlobalKey();
+  final GlobalKey _categoryFilterKey = GlobalKey();
+  final GlobalKey _sortKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAndStartTour();
+  }
+  
+  void _checkAndStartTour() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final hasSeenTour = await OnboardingService.hasSeenHomeTour();
+      if (!hasSeenTour && mounted) {
+        _startShowCase();
+      }
+    });
+  }
+
+  void _startShowCase() {
+    final goalsAsyncValue = ref.read(goalsProvider);
+    final activeGoals = goalsAsyncValue.maybeWhen(
+      data: (goals) => goals.where((g) => !g.isArchived).toList(),
+      orElse: () => <Goal>[],
+    );
+    
+    // Build the showcase list based on what's visible
+    final showcaseKeys = <GlobalKey>[
+      _addGoalKey,
+      _trophiesKey,
+      _archivesKey,
+      _alarmKey,
+      _settingsKey,
+      // Only show category/sort if there are goals
+      if (activeGoals.isNotEmpty) ...[
+        _categoryFilterKey,
+        _sortKey,
+      ],
+    ];
+    
+    ShowCaseWidget.of(context).startShowCase(showcaseKeys);
+    // Mark tour as completed when it finishes
+    OnboardingService.setHomeTourCompleted();
+  }
 
   String _getGreetingMessage() {
     final hour = DateTime.now().hour;
@@ -59,7 +128,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final goalsAsyncValue = ref.watch(goalsProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final archiveStats = ref.watch(archiveStatsProvider);
@@ -101,153 +170,188 @@ class HomeScreen extends ConsumerWidget {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                        Icon(
-                          Icons.emoji_events,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '이번 달: ${archiveStats['thisMonth']}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.emoji_events_outlined,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '올 해: ${archiveStats['thisYear']}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.secondary,
+                        Showcase(
+                          key: _trophiesKey,
+                          description: '이번 달과 올해 달성한 목표의 개수를 보여줍니다. 목표를 완료하면 트로피가 늘어나요!',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.emoji_events,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '이번 달: ${archiveStats['thisMonth']}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                Icons.emoji_events_outlined,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '올 해: ${archiveStats['thisYear']}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
                         // Archives chip button
-                        InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const ArchivesScreen(),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.archive_outlined,
-                                  size: 12,
-                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        Showcase(
+                          key: _archivesKey,
+                          description: '달성한 목표들을 확인할 수 있습니다. 이번 달과 올해 달성한 목표 개수를 볼 수 있어요.',
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const ArchivesScreen(),
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '보관함',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.archive_outlined,
+                                    size: 12,
                                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '보관함',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 4),
                         // Alarm chip button
-                        InkWell(
-                          onTap: () {
-                            // If no alarm time set, open settings
-                            if (alarmTime == null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => const SettingsScreen(),
-                                ),
-                              );
-                            } else {
-                              // Quick toggle
-                              ref.read(alarmEnabledProvider.notifier).state = !alarmEnabled;
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: alarmEnabled
-                                  ? Theme.of(context).colorScheme.primaryContainer
-                                  : Theme.of(context).colorScheme.surfaceVariant,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  alarmEnabled ? Icons.notifications_active : Icons.notifications_off,
-                                  size: 12,
-                                  color: alarmEnabled
-                                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '알림',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
+                        Showcase(
+                          key: _alarmKey,
+                          description: '매일 알림을 받아 목표를 잊지 않고 꾸준히 실천할 수 있어요. 탭해서 켜고 끌 수 있습니다.',
+                          child: InkWell(
+                            onTap: () async {
+                              // If no alarm time set, open settings
+                              if (alarmTime == null) {
+                                final shouldRestartTour = await Navigator.of(context).push<bool>(
+                                  MaterialPageRoute(
+                                    builder: (context) => const SettingsScreen(),
+                                  ),
+                                );
+                                if (shouldRestartTour == true && mounted) {
+                                  // Small delay to ensure UI is ready
+                                  await Future.delayed(const Duration(milliseconds: 300));
+                                  if (mounted) {
+                                    _startShowCase();
+                                  }
+                                }
+                              } else {
+                                // Quick toggle
+                                ref.read(alarmEnabledProvider.notifier).state = !alarmEnabled;
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: alarmEnabled
+                                    ? Theme.of(context).colorScheme.primaryContainer
+                                    : Theme.of(context).colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    alarmEnabled ? Icons.notifications_active : Icons.notifications_off,
+                                    size: 12,
                                     color: alarmEnabled
                                         ? Theme.of(context).colorScheme.onPrimaryContainer
                                         : Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '알림',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: alarmEnabled
+                                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 4),
                         // More chip button
-                        InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsScreen(),
+                        Showcase(
+                          key: _settingsKey,
+                          description: '앱 설정, 알림 시간 변경, 데이터 백업 및 복원 등을 할 수 있습니다.',
+                          child: InkWell(
+                            onTap: () async {
+                              final shouldRestartTour = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsScreen(),
+                                ),
+                              );
+                              if (shouldRestartTour == true && mounted) {
+                                // Small delay to ensure UI is ready
+                                await Future.delayed(const Duration(milliseconds: 300));
+                                if (mounted) {
+                                  _startShowCase();
+                                }
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.more_horiz,
-                              size: 12,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.more_horiz,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ),
@@ -351,9 +455,17 @@ class HomeScreen extends ConsumerWidget {
           return Column(
             children: [
               // Category filter chips
-              _buildCategoryChips(context, ref, activeGoals),
+              Showcase(
+                key: _categoryFilterKey,
+                description: '카테고리별로 목표를 필터링할 수 있습니다. 건강, 학습, 취미, 업무 등 카테고리를 선택하세요.',
+                child: _buildCategoryChips(context, ref, activeGoals),
+              ),
               // Sort selector
-              _buildSortSelector(context, ref),
+              Showcase(
+                key: _sortKey,
+                description: '목표를 생성일, 진행률, 마감일 등 다양한 기준으로 정렬할 수 있습니다.',
+                child: _buildSortSelector(context, ref),
+              ),
               // Goal list
               Expanded(
                 child: ListView.builder(
@@ -391,16 +503,22 @@ class HomeScreen extends ConsumerWidget {
         },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'main_fab',
-        onPressed: () {
-          _showAddGoalSheet(context, ref);
-        },
-        backgroundColor: Colors.purpleAccent,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          '새 목표',
-          style: TextStyle(color: Colors.white),
+      floatingActionButton: Showcase(
+        key: _addGoalKey,
+        title: '새 목표 추가',
+        description: '여기를 눌러 새로운 목표를 추가할 수 있습니다. 목표 이름, 목표량, 현재까지 완료한 양, 마감일 등을 설정하세요.',
+        targetShapeBorder: const CircleBorder(),
+        child: FloatingActionButton.extended(
+          heroTag: 'main_fab',
+          onPressed: () {
+            _showAddGoalSheet(context, ref);
+          },
+          backgroundColor: Colors.purpleAccent,
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            '새 목표',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
