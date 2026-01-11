@@ -48,3 +48,5 @@ app.*.map.json
 .metadata
 
 /tmp/
+/android/key.properties
+/release-keystore.jks
