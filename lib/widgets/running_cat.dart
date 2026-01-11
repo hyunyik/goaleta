@@ -51,6 +51,16 @@ class _CatMessages {
     '완주 직전!',
   ];
 
+  // 100%: Completion messages
+  static final List<String> completionMessages = [
+    '수고했어!',
+    '끝났다!',
+    '완주했어!',
+    '멋져!',
+    '최고야!',
+    '해냈어!',
+  ];
+
   // Can appear anywhere
   static final List<String> generalMessages = [
     '냥냥!',
@@ -64,6 +74,11 @@ class _CatMessages {
 
   static String getMessageForProgress(double progress) {
     final random = Random();
+    
+    // Show completion message when at 100%
+    if (progress >= 1.0) {
+      return completionMessages[random.nextInt(completionMessages.length)];
+    }
     
     // 30% chance to show general message anywhere
     if (random.nextDouble() < 0.3) {
@@ -95,7 +110,12 @@ class _RunningCatState extends State<RunningCat>
     _controller = AnimationController(
       vsync: this,
       duration: duration,
-    )..repeat();
+    );
+    
+    // Only animate if progress < 1.0
+    if (widget.progress < 1.0) {
+      _controller.repeat();
+    }
 
     // Change bubble text randomly
     _scheduleBubble();
@@ -118,6 +138,14 @@ class _RunningCatState extends State<RunningCat>
     if (oldWidget.speed != widget.speed) {
       _updateAnimationSpeed();
     }
+    
+    // Stop animation when progress reaches 100%
+    if (oldWidget.progress < 1.0 && widget.progress >= 1.0) {
+      _controller.stop();
+    } else if (oldWidget.progress >= 1.0 && widget.progress < 1.0) {
+      // Resume animation if progress goes back below 100%
+      _controller.repeat();
+    }
   }
 
   void _updateAnimationSpeed() {
@@ -126,7 +154,12 @@ class _RunningCatState extends State<RunningCat>
     _controller = AnimationController(
       vsync: this,
       duration: duration,
-    )..repeat();
+    );
+    
+    // Only repeat if progress < 1.0
+    if (widget.progress < 1.0) {
+      _controller.repeat();
+    }
   }
 
   Duration _calculateDuration(double speed) {
@@ -235,78 +268,153 @@ class _CatPainter extends CustomPainter {
     final centerX = size.width / 2;
     final centerY = size.height / 2;
 
-    // Body (oval)
-    final bodyRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(centerX, centerY + 2),
-        width: 16,
-        height: 12,
-      ),
-      const Radius.circular(6),
-    );
-    canvas.drawRRect(bodyRect, paint);
+    final isSitting = progress >= 1.0;
 
-    // Head (circle)
-    canvas.drawCircle(
-      Offset(centerX + 6, centerY - 2),
-      5,
-      paint,
-    );
-
-    // Ears (triangles)
-    final earPath1 = Path()
-      ..moveTo(centerX + 4, centerY - 6)
-      ..lineTo(centerX + 6, centerY - 10)
-      ..lineTo(centerX + 8, centerY - 6)
-      ..close();
-    canvas.drawPath(earPath1, paint);
-
-    final earPath2 = Path()
-      ..moveTo(centerX + 8, centerY - 6)
-      ..lineTo(centerX + 10, centerY - 9)
-      ..lineTo(centerX + 12, centerY - 6)
-      ..close();
-    canvas.drawPath(earPath2, paint);
-
-    // Tail (curved)
-    final tailPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-
-    final tailPath = Path()
-      ..moveTo(centerX - 8, centerY + 2)
-      ..quadraticBezierTo(
-        centerX - 12,
-        centerY - 2 + (animationValue * 4 - 2),
-        centerX - 10,
-        centerY - 6 + (animationValue * 3 - 1.5),
+    if (isSitting) {
+      // Sitting pose
+      // Body (larger, more rounded for sitting)
+      final bodyRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(centerX, centerY + 4),
+          width: 16,
+          height: 14,
+        ),
+        const Radius.circular(7),
       );
-    canvas.drawPath(tailPath, tailPaint);
+      canvas.drawRRect(bodyRect, paint);
 
-    // Legs (animated running)
-    final legPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+      // Head (circle) - flipped to left
+      canvas.drawCircle(
+        Offset(centerX - 6, centerY - 1),
+        5,
+        paint,
+      );
 
-    // Front leg
-    final frontLegOffset = animationValue < 0.5 ? 0.0 : 2.0;
-    canvas.drawLine(
-      Offset(centerX + 4, centerY + 8),
-      Offset(centerX + 4, centerY + 12 - frontLegOffset),
-      legPaint,
-    );
+      // Ears (triangles) - flipped to left
+      final earPath1 = Path()
+        ..moveTo(centerX - 4, centerY - 5)
+        ..lineTo(centerX - 6, centerY - 9)
+        ..lineTo(centerX - 8, centerY - 5)
+        ..close();
+      canvas.drawPath(earPath1, paint);
 
-    // Back leg
-    final backLegOffset = animationValue < 0.5 ? 2.0 : 0.0;
-    canvas.drawLine(
-      Offset(centerX - 2, centerY + 8),
-      Offset(centerX - 2, centerY + 12 - backLegOffset),
-      legPaint,
-    );
+      final earPath2 = Path()
+        ..moveTo(centerX - 8, centerY - 5)
+        ..lineTo(centerX - 10, centerY - 8)
+        ..lineTo(centerX - 12, centerY - 5)
+        ..close();
+      canvas.drawPath(earPath2, paint);
+
+      // Tail (curved upward for sitting) - flipped to right
+      final tailPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
+
+      final tailPath = Path()
+        ..moveTo(centerX + 8, centerY + 4)
+        ..quadraticBezierTo(
+          centerX + 12,
+          centerY,
+          centerX + 10,
+          centerY - 4,
+        );
+      canvas.drawPath(tailPath, tailPaint);
+
+      // Legs (sitting position - front paws visible)
+      final legPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
+
+      // Front legs (slightly forward) - flipped to left
+      canvas.drawLine(
+        Offset(centerX - 2, centerY + 10),
+        Offset(centerX - 2, centerY + 14),
+        legPaint,
+      );
+      canvas.drawLine(
+        Offset(centerX - 6, centerY + 10),
+        Offset(centerX - 6, centerY + 14),
+        legPaint,
+      );
+    } else {
+      // Running pose (original animation)
+      // Body (oval)
+      final bodyRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(centerX, centerY + 2),
+          width: 16,
+          height: 12,
+        ),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(bodyRect, paint);
+
+      // Head (circle) - flipped to left
+      canvas.drawCircle(
+        Offset(centerX - 6, centerY - 2),
+        5,
+        paint,
+      );
+
+      // Ears (triangles) - flipped to left
+      final earPath1 = Path()
+        ..moveTo(centerX - 4, centerY - 6)
+        ..lineTo(centerX - 6, centerY - 10)
+        ..lineTo(centerX - 8, centerY - 6)
+        ..close();
+      canvas.drawPath(earPath1, paint);
+
+      final earPath2 = Path()
+        ..moveTo(centerX - 8, centerY - 6)
+        ..lineTo(centerX - 10, centerY - 9)
+        ..lineTo(centerX - 12, centerY - 6)
+        ..close();
+      canvas.drawPath(earPath2, paint);
+
+      // Tail (curved with animation) - flipped to right
+      final tailPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
+
+      final tailPath = Path()
+        ..moveTo(centerX + 8, centerY + 2)
+        ..quadraticBezierTo(
+          centerX + 12,
+          centerY - 2 + (animationValue * 4 - 2),
+          centerX + 10,
+          centerY - 6 + (animationValue * 3 - 1.5),
+        );
+      canvas.drawPath(tailPath, tailPaint);
+
+      // Legs (animated running)
+      final legPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
+
+      // Front leg - flipped to left
+      final frontLegOffset = animationValue < 0.5 ? 0.0 : 2.0;
+      canvas.drawLine(
+        Offset(centerX - 4, centerY + 8),
+        Offset(centerX - 4, centerY + 12 - frontLegOffset),
+        legPaint,
+      );
+
+      // Back leg - flipped to left
+      final backLegOffset = animationValue < 0.5 ? 2.0 : 0.0;
+      canvas.drawLine(
+        Offset(centerX + 2, centerY + 8),
+        Offset(centerX + 2, centerY + 12 - backLegOffset),
+        legPaint,
+      );
+    }
   }
 
   @override

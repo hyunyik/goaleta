@@ -625,8 +625,8 @@ class GoalDetailScreen extends ConsumerWidget {
     return Align(
       alignment: Alignment(
         // Map progress from 0-1 to alignment from -1 to 1
-        // Offset slightly to account for cat width
-        (progress * 2 - 1).clamp(-1.0, 0.9),
+        // Allow cat to reach the end when at 100%
+        (progress * 2 - 1).clamp(-1.0, 1.0),
         0.0,
       ),
       child: Padding(
