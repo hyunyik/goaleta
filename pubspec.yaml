@@ -2,7 +2,7 @@ name: goaleta
 description: "누적 목표 예측기 - 목표 진행 상황을 추적하고 완료 예상일을 계산하는 앱"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

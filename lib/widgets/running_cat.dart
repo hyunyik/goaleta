@@ -341,7 +341,7 @@ class _CatPainter extends CustomPainter {
         legPaint,
       );
     } else {
-      // Running pose (original animation)
+      // Running pose - facing RIGHT
       // Body (oval)
       final bodyRect = RRect.fromRectAndRadius(
         Rect.fromCenter(
@@ -353,29 +353,29 @@ class _CatPainter extends CustomPainter {
       );
       canvas.drawRRect(bodyRect, paint);
 
-      // Head (circle) - flipped to left
+      // Head (circle) - facing right
       canvas.drawCircle(
-        Offset(centerX - 6, centerY - 2),
+        Offset(centerX + 6, centerY - 2),
         5,
         paint,
       );
 
-      // Ears (triangles) - flipped to left
+      // Ears (triangles) - facing right
       final earPath1 = Path()
-        ..moveTo(centerX - 4, centerY - 6)
-        ..lineTo(centerX - 6, centerY - 10)
-        ..lineTo(centerX - 8, centerY - 6)
+        ..moveTo(centerX + 4, centerY - 6)
+        ..lineTo(centerX + 6, centerY - 10)
+        ..lineTo(centerX + 8, centerY - 6)
         ..close();
       canvas.drawPath(earPath1, paint);
 
       final earPath2 = Path()
-        ..moveTo(centerX - 8, centerY - 6)
-        ..lineTo(centerX - 10, centerY - 9)
-        ..lineTo(centerX - 12, centerY - 6)
+        ..moveTo(centerX + 8, centerY - 6)
+        ..lineTo(centerX + 10, centerY - 9)
+        ..lineTo(centerX + 12, centerY - 6)
         ..close();
       canvas.drawPath(earPath2, paint);
 
-      // Tail (curved with animation) - flipped to right
+      // Tail (curved with animation) - on left side when facing right
       final tailPaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -383,11 +383,11 @@ class _CatPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round;
 
       final tailPath = Path()
-        ..moveTo(centerX + 8, centerY + 2)
+        ..moveTo(centerX - 8, centerY + 2)
         ..quadraticBezierTo(
-          centerX + 12,
+          centerX - 12,
           centerY - 2 + (animationValue * 4 - 2),
-          centerX + 10,
+          centerX - 10,
           centerY - 6 + (animationValue * 3 - 1.5),
         );
       canvas.drawPath(tailPath, tailPaint);
@@ -399,19 +399,19 @@ class _CatPainter extends CustomPainter {
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round;
 
-      // Front leg - flipped to left
+      // Front leg - facing right
       final frontLegOffset = animationValue < 0.5 ? 0.0 : 2.0;
       canvas.drawLine(
-        Offset(centerX - 4, centerY + 8),
-        Offset(centerX - 4, centerY + 12 - frontLegOffset),
+        Offset(centerX + 4, centerY + 8),
+        Offset(centerX + 4, centerY + 12 - frontLegOffset),
         legPaint,
       );
 
-      // Back leg - flipped to left
+      // Back leg - facing right
       final backLegOffset = animationValue < 0.5 ? 2.0 : 0.0;
       canvas.drawLine(
-        Offset(centerX + 2, centerY + 8),
-        Offset(centerX + 2, centerY + 12 - backLegOffset),
+        Offset(centerX - 2, centerY + 8),
+        Offset(centerX - 2, centerY + 12 - backLegOffset),
         legPaint,
       );
     }
