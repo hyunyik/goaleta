@@ -3,6 +3,8 @@ import 'package:goaleta/models/goal.dart';
 import 'package:goaleta/widgets/custom_date_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:showcaseview/showcaseview.dart';
+import 'package:goaleta/services/onboarding_service.dart';
 
 class AddLogBottomSheet extends ConsumerStatefulWidget {
   final String goalId;
@@ -15,6 +17,7 @@ class AddLogBottomSheet extends ConsumerStatefulWidget {
   final DateTime? latestLogDate;
   final List<DateTime> existingLogDates;
   final Goal goal;
+  final bool isFirstRecordOfFirstGoal;
 
   const AddLogBottomSheet({
     required this.goalId,
@@ -27,6 +30,7 @@ class AddLogBottomSheet extends ConsumerStatefulWidget {
     this.latestLogDate,
     this.existingLogDates = const [],
     required this.goal,
+    this.isFirstRecordOfFirstGoal = false,
     Key? key,
   }) : super(key: key);
 
@@ -43,6 +47,12 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
   // Validation error states
   bool _amountError = false;
   String? _amountErrorMessage;
+  
+  // Showcase keys for tour
+  final GlobalKey _modeKey = GlobalKey();
+  final GlobalKey _amountKey = GlobalKey();
+  final GlobalKey _dateKey = GlobalKey();
+  final GlobalKey _noteKey = GlobalKey();
 
   @override
   void initState() {
@@ -53,6 +63,32 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
     noteController =
         TextEditingController(text: widget.existingLog?.note ?? '');
     logDate = widget.existingLog?.logDate ?? DateTime.now();
+    
+    // Check and start tour for first record of first goal
+    if (widget.existingLog == null && widget.isFirstRecordOfFirstGoal) {
+      _checkAndStartTour();
+    }
+  }
+  
+  void _checkAndStartTour() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final hasSeenTour = await OnboardingService.hasSeenLogFormTour();
+      if (!hasSeenTour && mounted) {
+        _startShowCase();
+      }
+    });
+  }
+
+  void _startShowCase() {
+    final showcaseKeys = <GlobalKey>[
+      _modeKey,
+      _amountKey,
+      _dateKey,
+      _noteKey,
+    ];
+    
+    ShowCaseWidget.of(context).startShowCase(showcaseKeys);
+    OnboardingService.setLogFormTourCompleted();
   }
 
   @override
@@ -202,13 +238,16 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
 
             // 입력 모드 선택
             if (widget.existingLog == null) // 새 기록 추가시에만 표시
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline,
+              Showcase(
+                key: _modeKey,
+                description: '기록 입력 방식을 선택하세요.\n• 일일: 오늘 달성한 양만 입력 (예: 오늘 50페이지 읽음)\n• 누적: 현재까지의 전체 누적값 입력 (예: 총 150페이지까지 읽음)',
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -333,84 +372,97 @@ class _AddLogBottomSheetState extends ConsumerState<AddLogBottomSheet> {
                   ],
                 ),
               ),
+            ),
             if (widget.existingLog == null) const SizedBox(height: 20),
 
             // 값 입력
-            TextField(
-              controller: amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: isAccumulativeMode ? '누적값 *' : '값 *',
-                hintText: isAccumulativeMode
-                    ? (widget.previousCumulativeTotal != null
-                        ? '예: ${(widget.startingAmount + widget.previousCumulativeTotal! + 50).toStringAsFixed(0)} (현재: ${(widget.startingAmount + widget.previousCumulativeTotal!).toStringAsFixed(0)})'
-                        : widget.startingAmount > 0
-                            ? '예: ${(widget.startingAmount + 50).toStringAsFixed(0)} (시작: ${widget.startingAmount.toStringAsFixed(0)})'
-                            : '예: 150')
-                    : '예: 50',
-                suffixText: widget.unit,
-                prefixIcon: Icon(
-                  isAccumulativeMode ? Icons.trending_up : Icons.edit_note,
+            Showcase(
+              key: _amountKey,
+              description: '달성한 양을 입력하세요.\n• 일일 모드: 오늘 한 양을 입력 (예: 50)\n• 누적 모드: 현재까지의 전체 누적값 입력 (예: 150)',
+              child: TextField(
+                controller: amountController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: isAccumulativeMode ? '누적값 *' : '값 *',
+                  hintText: isAccumulativeMode
+                      ? (widget.previousCumulativeTotal != null
+                          ? '예: ${(widget.startingAmount + widget.previousCumulativeTotal! + 50).toStringAsFixed(0)} (현재: ${(widget.startingAmount + widget.previousCumulativeTotal!).toStringAsFixed(0)})'
+                          : widget.startingAmount > 0
+                              ? '예: ${(widget.startingAmount + 50).toStringAsFixed(0)} (시작: ${widget.startingAmount.toStringAsFixed(0)})'
+                              : '예: 150')
+                      : '예: 50',
+                  suffixText: widget.unit,
+                  prefixIcon: Icon(
+                    isAccumulativeMode ? Icons.trending_up : Icons.edit_note,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  errorText: _amountError ? _amountErrorMessage : null,
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+                  ),
+                  helperText: _amountError ? null : (isAccumulativeMode ? '전체 누적값을 입력하세요' : '오늘 달성한 양을 입력하세요'),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                errorText: _amountError ? _amountErrorMessage : null,
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
-                ),
-                helperText: _amountError ? null : (isAccumulativeMode ? '전체 누적값을 입력하세요' : '오늘 달성한 양을 입력하세요'),
-              ),
-              onChanged: (value) {
-                if (_amountError && value.isNotEmpty) {
-                  final amount = double.tryParse(value);
-                  if (amount != null && amount >= 0) {
-                    setState(() {
-                      _amountError = false;
-                      _amountErrorMessage = null;
-                    });
+                onChanged: (value) {
+                  if (_amountError && value.isNotEmpty) {
+                    final amount = double.tryParse(value);
+                    if (amount != null && amount >= 0) {
+                      setState(() {
+                        _amountError = false;
+                        _amountErrorMessage = null;
+                      });
+                    }
                   }
-                }
-              },
+                },
+              ),
             ),
             const SizedBox(height: 20),
 
             // 날짜
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('날짜'),
-              subtitle: Text(dateFormatter.format(logDate)),
-              leading: Icon(
-                Icons.calendar_today,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onTap: () => _selectDate(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outline,
+            Showcase(
+              key: _dateKey,
+              description: '기록의 날짜를 선택하세요. 목표 시작일부터 오늘까지 선택할 수 있습니다. 이미 기록이 있는 날은 달력에 표시됩니다.',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('날짜'),
+                subtitle: Text(dateFormatter.format(logDate)),
+                leading: Icon(
+                  Icons.calendar_today,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                onTap: () => _selectDate(context),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
             // 메모 (선택사항)
-            TextField(
-              controller: noteController,
-              maxLines: 3,
-              minLines: 2,
-              decoration: InputDecoration(
-                labelText: '메모 (선택)',
-                hintText: '예: 집중이 잘 됐음',
-                prefixIcon: const Icon(Icons.note),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Showcase(
+              key: _noteKey,
+              description: '오늘의 기록에 대한 메모를 남길 수 있습니다. 예: "집중이 잘 됐음", "힘들었지만 완료" 등',
+              child: TextField(
+                controller: noteController,
+                maxLines: 3,
+                minLines: 2,
+                decoration: InputDecoration(
+                  labelText: '메모 (선택)',
+                  hintText: '예: 집중이 잘 됐음',
+                  prefixIcon: const Icon(Icons.note),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

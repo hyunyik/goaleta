@@ -747,19 +747,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      builder: (context) => AddEditGoalBottomSheet(
-        onSave: (goal) {
-          ref.read(goalsProvider.notifier).addGoal(goal);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('새로운 목표가 추가되었습니다'),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+      builder: (context) => ShowCaseWidget(
+        builder: (context) => AddEditGoalBottomSheet(
+          onSave: (goal) {
+            ref.read(goalsProvider.notifier).addGoal(goal);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('새로운 목표가 추가되었습니다'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

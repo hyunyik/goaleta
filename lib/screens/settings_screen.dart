@@ -55,6 +55,8 @@ class SettingsScreen extends ConsumerWidget {
           // Help section
           _buildSectionHeader(context, '도움말'),
           _buildRestartTourTile(context, ref),
+          _buildRestartGoalFormTourTile(context, ref),
+          _buildRestartLogFormTourTile(context, ref),
           const Divider(height: 1),
           
           const SizedBox(height: 24),
@@ -288,6 +290,58 @@ class SettingsScreen extends ConsumerWidget {
         await OnboardingService.resetHomeTour();
         if (context.mounted) {
           Navigator.pop(context, true); // Return true to indicate tour should restart
+        }
+      },
+    );
+  }
+
+  Widget _buildRestartGoalFormTourTile(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: Icon(
+        Icons.add_task_outlined,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('목표 만들기 가이드 다시 보기'),
+      subtitle: const Text('목표 생성 폼의 설명을 다시 확인하세요'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () async {
+        await OnboardingService.resetGoalFormTour();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('다음에 새 목표를 만들 때 가이드가 표시됩니다'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildRestartLogFormTourTile(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: Icon(
+        Icons.edit_note_outlined,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('기록 추가 가이드 다시 보기'),
+      subtitle: const Text('기록 추가 폼의 설명을 다시 확인하세요'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () async {
+        await OnboardingService.resetLogFormTour();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('다음에 첫 번째 목표에 첫 기록을 추가할 때 가이드가 표시됩니다'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
         }
       },
     );

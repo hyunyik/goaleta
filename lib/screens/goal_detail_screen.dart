@@ -8,6 +8,7 @@ import 'package:goaleta/utils/eta_calculator.dart';
 import 'package:goaleta/widgets/add_log_sheet.dart';
 import 'package:goaleta/widgets/running_cat.dart';
 import 'package:goaleta/widgets/congratulations_dialog.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 class GoalDetailScreen extends ConsumerWidget {
   final Goal goal;
@@ -1134,22 +1135,40 @@ class GoalDetailScreen extends ConsumerWidget {
     final List<DateTime> existingLogDates =
         logs.map((log) => log.logDate).toList();
 
+    // Check if this is the first record of the first goal
+    final allGoalsAsync = ref.read(goalsProvider);
+    final isFirstRecordOfFirstGoal = allGoalsAsync.maybeWhen(
+      data: (allGoals) {
+        // Get all non-archived goals sorted by creation date
+        final activeGoals = allGoals.where((g) => !g.isArchived).toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        
+        // Check if this is the first goal and has no logs
+        return activeGoals.isNotEmpty && 
+               activeGoals.first.id == goal.id && 
+               logs.isEmpty;
+      },
+      orElse: () => false,
+    );
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      builder: (context) => AddLogBottomSheet(
-        goalId: goal.id,
-        unit: goal.unit,
-        previousCumulativeTotal: previousCumulativeTotal,
-        goalStartDate: goal.startDate,
-        startingAmount: goal.startingAmount,
-        latestLogDate: latestLogDate,
-        existingLogDates: existingLogDates,
-        goal: goal,
-        onSave: (log) async {
+      builder: (context) => ShowCaseWidget(
+        builder: (context) => AddLogBottomSheet(
+          goalId: goal.id,
+          unit: goal.unit,
+          previousCumulativeTotal: previousCumulativeTotal,
+          goalStartDate: goal.startDate,
+          startingAmount: goal.startingAmount,
+          latestLogDate: latestLogDate,
+          existingLogDates: existingLogDates,
+          goal: goal,
+          isFirstRecordOfFirstGoal: isFirstRecordOfFirstGoal,
+          onSave: (log) async {
           // Capture context objects IMMEDIATELY before any async operations
           final capturedScaffoldMessenger = ScaffoldMessenger.of(context);
           final capturedNavigator = Navigator.of(context);
@@ -1261,6 +1280,7 @@ class GoalDetailScreen extends ConsumerWidget {
             );
           }
         },
+      ),
       ),
     );
   }
